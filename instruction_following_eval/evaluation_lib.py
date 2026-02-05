@@ -38,6 +38,7 @@ class OutputExample:
   response: str
   follow_all_instructions: bool
   follow_instruction_list: list[bool]
+  feedback_list: list[str]
 
 
 def read_prompt_list(input_jsonl_filename):
@@ -80,6 +81,7 @@ def test_instruction_following_strict(
   response = prompt_to_response[inp.prompt]
   instruction_list = inp.instruction_id_list
   is_following_list = []
+  feedback_list = []
 
   for index, instruction_id in enumerate(instruction_list):
     instruction_cls = instructions_registry.INSTRUCTION_DICT[instruction_id]
@@ -90,10 +92,12 @@ def test_instruction_following_strict(
     if args and "prompt" in args:
       instruction.build_description(prompt=inp.prompt)
 
-    if response.strip() and instruction.check_following(response):
+    passed, feedback = instruction.check_following(response)
+    if response.strip() and passed:
       is_following_list.append(True)
     else:
       is_following_list.append(False)
+    feedback_list.append(feedback)
 
   return OutputExample(
       instruction_id_list=inp.instruction_id_list,
@@ -101,6 +105,7 @@ def test_instruction_following_strict(
       response=response,
       follow_all_instructions=all(is_following_list),
       follow_instruction_list=is_following_list,
+      feedback_list=feedback_list,
   )
 
 
@@ -130,6 +135,7 @@ def test_instruction_following_loose(
   ]
   instruction_list = inp.instruction_id_list
   is_following_list = []
+  feedback_list = []
 
   for index, instruction_id in enumerate(instruction_list):
     instruction_cls = instructions_registry.INSTRUCTION_DICT[instruction_id]
@@ -141,12 +147,14 @@ def test_instruction_following_loose(
       instruction.build_description(prompt=inp.prompt)
 
     is_following = False
+    passed, feedback = instruction.check_following(r)
     for r in all_responses:
-      if r.strip() and instruction.check_following(r):
+      if r.strip() and passed:
         is_following = True
         break
 
     is_following_list.append(is_following)
+    feedback_list.append(feedback)
 
   return OutputExample(
       instruction_id_list=inp.instruction_id_list,
@@ -154,6 +162,7 @@ def test_instruction_following_loose(
       response=response,
       follow_all_instructions=all(is_following_list),
       follow_instruction_list=is_following_list,
+      feedback_list=feedback_list,
   )
 
 

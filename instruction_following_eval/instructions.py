@@ -155,13 +155,13 @@ class ResponseLanguageChecker(Instruction):
     assert isinstance(value, str)
 
     try:
-      return langdetect.detect(value) == self._language
+      return langdetect.detect(value) == self._language, f"Detected language '{langdetect.detect(value)}', required '{self._language}'."
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
           "Unable to detect language for text %s due to %s", value, e
       )  # refex: disable=pytotw.037
-      return True
+      return True, "Language detection failed; counted as passed."
 
 
 class NumberOfSentences(Instruction):
@@ -226,10 +226,11 @@ class NumberOfSentences(Instruction):
         [`less_than`, `at_least`].
     """
     num_sentences = instructions_util.count_sentences(value)
+    feedback = f"Found {num_sentences} sentences, required {self._comparison_relation} {self._num_sentences_threshold}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
-      return num_sentences < self._num_sentences_threshold
+      return num_sentences < self._num_sentences_threshold, feedback  # pytype: disable=bad-return-type
     elif self._comparison_relation == _COMPARISON_RELATION[1]:
-      return num_sentences >= self._num_sentences_threshold  # pytype: disable=bad-return-type
+      return num_sentences >= self._num_sentences_threshold, feedback  # pytype: disable=bad-return-type
 
 
 class PlaceholderChecker(Instruction):
@@ -274,7 +275,8 @@ class PlaceholderChecker(Instruction):
     """
     placeholders = re.findall(r"\[.*?\]", value)
     num_placeholders = len(placeholders)
-    return num_placeholders >= self._num_placeholders
+    return num_placeholders >= self._num_placeholders,\
+          f"Found {num_placeholders} placeholders: {placeholders}, required at least {self._num_placeholders}"
 
 
 class BulletListChecker(Instruction):
@@ -323,7 +325,8 @@ class BulletListChecker(Instruction):
     bullet_lists = re.findall(r"^\s*\*[^\*].*$", value, flags=re.MULTILINE)
     bullet_lists_2 = re.findall(r"^\s*-.*$", value, flags=re.MULTILINE)
     num_bullet_lists = len(bullet_lists) + len(bullet_lists_2)
-    return num_bullet_lists == self._num_bullets
+    return num_bullet_lists == self._num_bullets, \
+          f"Found {num_bullet_lists} bullets, required {self._num_bullets}."
 
 
 class ConstrainedResponseChecker(Instruction):
@@ -359,8 +362,8 @@ class ConstrainedResponseChecker(Instruction):
     value = value.strip()
     for constrained_response in self._constrained_responses:
       if constrained_response in value:
-        return True
-    return False
+        return True, f"Response matched constrained option: '{constrained_response}'."
+    return False, f"Response did not match any constrained option: {self._constrained_responses}."
 
 
 class ConstrainedStartChecker(Instruction):
@@ -405,7 +408,9 @@ class ConstrainedStartChecker(Instruction):
     response_pattern = r"^\s*" + self._starter + r".*$"
     response_with_constrained_start = re.search(response_pattern, value,
                                                 flags=re.MULTILINE)
-    return True if response_with_constrained_start else False
+    if response_with_constrained_start:
+        return True, f"Response starts with '{self._starter}': True."
+    return False, f"Response starts with '{value.lstrip()[:len(self._starter)]}', expected start: '{self._starter}'."
 
 
 class HighlightSectionChecker(Instruction):
@@ -453,14 +458,18 @@ class HighlightSectionChecker(Instruction):
     num_highlights = 0
     highlights = re.findall(r"\*[^\n\*]*\*", value)
     double_highlights = re.findall(r"\*\*[^\n\*]*\*\*", value)
+    to_print = []
     for highlight in highlights:
       if highlight.strip("*").strip():
         num_highlights += 1
+        to_print.append(highlight)
     for highlight in double_highlights:
       if highlight.removeprefix("**").removesuffix("**").strip():
         num_highlights += 1
+        to_print.append(highlight)
 
-    return num_highlights >= self._num_highlights
+    return num_highlights >= self._num_highlights, \
+            f"Found {num_highlights} hughlighted sections, required at least {self._num_highlights}. Highlighted sections: {to_print}."
 
 
 class SectionChecker(Instruction):
@@ -524,7 +533,8 @@ class SectionChecker(Instruction):
     section_splitter_patten = r"\s?" + self._section_spliter  + r"\s?\d+\s?"
     sections = re.split(section_splitter_patten, value)
     num_sections = len(sections) - 1
-    return num_sections >= self._num_sections
+    return num_sections >= self._num_sections, \
+            f"Found {num_sections} sections using splitter '{self._section_spliter}', required at least {self._num_sections}."
 
 
 class ParagraphChecker(Instruction):
@@ -578,7 +588,8 @@ class ParagraphChecker(Instruction):
         else:
           return False
 
-    return num_paragraphs == self._num_paragraphs
+    return num_paragraphs == self._num_paragraphs, \
+            f"Found {num_paragraphs} paragraphs separated by '***', required exactly {self._num_paragraphs}."
 
 
 class PostscriptChecker(Instruction):
@@ -633,7 +644,7 @@ class PostscriptChecker(Instruction):
     else:
       postscript_pattern = r"\s*" + self._postscript_marker.lower() + r".*$"
     postscript = re.findall(postscript_pattern, value, flags=re.MULTILINE)
-    return True if postscript else False
+    return True if postscript else False, f"Postscript marker '{self._postscript_marker}' found: {True if postscript else False}"
 
 
 class RephraseChecker(Instruction):
@@ -689,7 +700,8 @@ class RephraseChecker(Instruction):
     reference_without_changes = self.strip_changes(
         self._reference_without_change)
 
-    return response_without_changes == reference_without_changes
+    return response_without_changes == reference_without_changes, \
+            f"Response matches original text outside *changes*: {response_without_changes == reference_without_changes}."
 
   def is_change(self, response):
     """Check if there is change in the response in the form of *change me*."""
@@ -736,10 +748,13 @@ class KeywordChecker(Instruction):
 
   def check_following(self, value):
     """Check if the response contain the expected keywords."""
+    missing_keywords = []
     for keyword in self._keywords:
       if not re.search(keyword, value, flags=re.IGNORECASE):
-        return False
-    return True
+        return missing_keywords.append(keyword)
+    if len(missing_keywords) == 0:
+        return True, f"All required keywords present: {self._keywords}."
+    return False, f"Missing keywords: {missing_keywords}."
 
 
 class KeywordFrequencyChecker(Instruction):
@@ -803,11 +818,11 @@ class KeywordFrequencyChecker(Instruction):
     """Checks if the response contain the keyword with required frequency."""
     actual_occurrences = len(re.findall(
         self._keyword, value, flags=re.IGNORECASE))
-
+    feedback = f"Keyword '{self._keyword}' found {actual_occurrences} times, required {self._comparison_relation} {self._frequency}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
-      return actual_occurrences < self._frequency
+      return actual_occurrences < self._frequency, feedback
     elif self._comparison_relation == _COMPARISON_RELATION[1]:
-      return actual_occurrences >= self._frequency  # pytype: disable=bad-return-type
+      return actual_occurrences >= self._frequency, feedback  # pytype: disable=bad-return-type
 
 
 class NumberOfWords(Instruction):
@@ -863,11 +878,11 @@ class NumberOfWords(Instruction):
   def check_following(self, value):
     """Checks if the response contains the expected number of words."""
     num_words = instructions_util.count_words(value)
-
+    feedback = f"Found {num_words} words, required {self._comparison_relation} {self._num_words}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
-      return num_words < self._num_words
+      return num_words < self._num_words, feedback
     elif self._comparison_relation == _COMPARISON_RELATION[1]:
-      return num_words >= self._num_words  # pytype: disable=bad-return-type
+      return num_words >= self._num_words, feedback  # pytype: disable=bad-return-type
 
 
 class JsonFormat(Instruction):
@@ -900,9 +915,9 @@ class JsonFormat(Instruction):
     )
     try:
       json.loads(value)
-    except ValueError as _:
-      return False
-    return True
+    except ValueError as e:
+      return False, f"Invalid JSON format. JSON load error: {e}."
+    return True, f"Valid JSON format: True."
 
 
 class ParagraphFirstWordCheck(Instruction):
@@ -1007,7 +1022,7 @@ class ParagraphFirstWordCheck(Instruction):
     return (
         num_paragraphs == self._num_paragraphs
         and first_word == self._first_word
-    )
+    ), f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph } starts with '{first_word}', required '{self._first_word}'."
 
 
 # TODO(jeffrey) add relation - at least/at most?
@@ -1060,11 +1075,13 @@ class KeySentenceChecker(Instruction):
     """Checks if the response contains the expected key sentences."""
     count = 0
     sentences = instructions_util.split_into_sentences(value)
+    key_sentences_found = []
     for sentence in self._key_sentences:
       if sentence in sentences:
         count += 1
+        key_sentences_found.append(sentence)
 
-    return count == self._num_sentences
+    return count == self._num_sentences, f"Found {count} key sentences, required {self._num_sentences}. Key sentences found: {key_sentences_found}."
 
 
 class ForbiddenWords(Instruction):
@@ -1106,10 +1123,13 @@ class ForbiddenWords(Instruction):
 
   def check_following(self, value):
     """Check if the response does not contain the expected keywords."""
+    forbidden_words_used = []
     for word in self._forbidden_words:
       if re.search(r"\b" + word + r"\b", value, flags=re.IGNORECASE):
-        return False
-    return True
+        forbidden_words_used.append(word)
+    if len(forbidden_words_used) == 0:
+      return True, "No forbidden words detected."
+    return False, f"Forbidden words detected: {forbidden_words_used}."
 
 
 class RephraseParagraph(Instruction):
@@ -1162,10 +1182,14 @@ class RephraseParagraph(Instruction):
     dict_val = collections.Counter(val_words)
     dict_original = collections.Counter(original_words)
 
+    shared_words = []
     for word in dict_original:
       similar_words += min(dict_original[word], dict_val[word])
+      if min(dict_original[word], dict_val[word]) > 0:
+        shared_words.append(word)
 
-    return similar_words >= self._low and similar_words <= self._high
+    return similar_words >= self._low and similar_words <= self._high, \
+            f"Found {similar_words} shared words with original, required between {self._low} and {self._high}. Shared words: {shared_words}."
 
 
 class TwoResponsesChecker(Instruction):
@@ -1207,7 +1231,7 @@ class TwoResponsesChecker(Instruction):
     return (
         len(valid_responses) == 2
         and valid_responses[0].strip() != valid_responses[1].strip()
-    )
+    ), f"Detected {valid_responses} valid responses separated by '******', required 2."
 
 
 class RepeatPromptThenAnswer(Instruction):
@@ -1243,8 +1267,8 @@ class RepeatPromptThenAnswer(Instruction):
 
   def check_following(self, value):
     if value.strip().lower().startswith(self._prompt_to_repeat.strip().lower()):
-      return True
-    return False
+      return True, "Response starts with prompt: True."
+    return False, f"Response starts with '{value.strip().lower()[:len(self._prompt_to_repeat.strip())]}', expected start: '{self._prompt_to_repeat.strip().lower()}'."
 
 
 class EndChecker(Instruction):
@@ -1280,7 +1304,9 @@ class EndChecker(Instruction):
     """Checks if the response ends with the expected phrase."""
     value = value.strip().strip("\"").lower()
     self._end_phrase = self._end_phrase.strip().lower()
-    return value.endswith(self._end_phrase)
+    if value.endswith(self._end_phrase):
+      return True, f"Response ends with '{self._end_phrase}': True."
+    return False, f"Response ends with '{value[-len(self._end_phrase):]}', expected ending: '{self._end_phrase}'."
 
 
 class TitleChecker(Instruction):
@@ -1309,8 +1335,8 @@ class TitleChecker(Instruction):
 
     for title in titles:
       if title.lstrip("<").rstrip(">").strip():
-        return True
-    return False
+        return True, f"Valid title present: {title}."
+    return False, f"None of the titles {titles} found."
 
 
 class LetterFrequencyChecker(Instruction):
@@ -1384,11 +1410,11 @@ class LetterFrequencyChecker(Instruction):
     """Checks that the response contains the letter at the right frequency."""
     value = value.lower()
     letters = collections.Counter(value)
-
+    feedback = f"Letter '{self._letter}' appears {letters[self._letter]} times, required {self._comparison_relation} {self._frequency}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
-      return letters[self._letter] < self._frequency
+      return letters[self._letter] < self._frequency, feedback
     else:
-      return letters[self._letter] >= self._frequency
+      return letters[self._letter] >= self._frequency, feedback
 
 
 class CapitalLettersEnglishChecker(Instruction):
@@ -1413,13 +1439,14 @@ class CapitalLettersEnglishChecker(Instruction):
     assert isinstance(value, str)
 
     try:
-      return value.isupper() and langdetect.detect(value) == "en"
+      return value.isupper() and langdetect.detect(value) == "en", \
+              f"The response is in all capital letters: {value.isupper()}, required True. Detected language: {langdetect.detect(value)}, required en."
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
           "Unable to detect language for text %s due to %s", value, e
       )  # refex: disable=pytotw.037
-      return True
+      return True, "Unable to detect language, returned True."
 
 
 class LowercaseLettersEnglishChecker(Instruction):
@@ -1445,13 +1472,14 @@ class LowercaseLettersEnglishChecker(Instruction):
     assert isinstance(value, str)
 
     try:
-      return value.islower() and langdetect.detect(value) == "en"
+      return value.islower() and langdetect.detect(value) == "en", \
+              f"The response is in all lowercase letters: {value.islower()}, required True. Detected language: {langdetect.detect(value)}, required en."
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
           "Unable to detect language for text %s due to %s", value, e
       )  # refex: disable=pytotw.037
-      return True
+      return True, "Unable to detect language, returned True."
 
 
 class CommaChecker(Instruction):
@@ -1473,7 +1501,9 @@ class CommaChecker(Instruction):
 
   def check_following(self, value):
     """Checks that the response does not contain commas."""
-    return not re.search(r"\,", value)
+    if not re.search(r"\,", value):
+      return True, "Response does not contain commas as required."
+    return False, "Comma detected in the response. The response must not contain commas."
 
 
 class CapitalWordFrequencyChecker(Instruction):
@@ -1534,8 +1564,8 @@ class CapitalWordFrequencyChecker(Instruction):
     words = instructions_util.nltk.word_tokenize(value)
     capital_words = [word for word in words if word.isupper()]
 
+    feedback = f"Found {len(capital_words)} ALL-CAPS words: {capital_words}, required {self._comparison_relation} {self._frequency}."
     capital_words = len(capital_words)
-
     if self._comparison_relation == _COMPARISON_RELATION[0]:
       return capital_words < self._frequency
     else:
@@ -1563,4 +1593,6 @@ class QuotationChecker(Instruction):
   def check_following(self, value):
     """Checks if the response is wrapped with double quotation marks."""
     value = value.strip()
-    return len(value) > 1 and value[0] == '"' and value[-1] == '"'
+    if len(value) > 1 and value[0] == '"' and value[-1] == '"':
+      return True, "Response is wrapped with double quotation marks: True."
+    return False, "No double quotation marks detected. The response must be wrapped with double quotation marks."
