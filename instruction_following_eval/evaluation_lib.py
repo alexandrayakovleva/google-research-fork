@@ -147,11 +147,18 @@ def test_instruction_following_loose(
       instruction.build_description(prompt=inp.prompt)
 
     is_following = False
-    passed, feedback = instruction.check_following(r)
+    final_feedback = None
+    first_feedback = None
     for r in all_responses:
+      passed, feedback = instruction.check_following(r)
+      if first_feedback is None:
+        first_feedback = feedback
       if r.strip() and passed:
         is_following = True
+        final_feedback = feedback
         break
+
+    feedback = final_feedback if is_following else first_feedback
 
     is_following_list.append(is_following)
     feedback_list.append(feedback)

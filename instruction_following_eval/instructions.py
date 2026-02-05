@@ -155,7 +155,8 @@ class ResponseLanguageChecker(Instruction):
     assert isinstance(value, str)
 
     try:
-      return langdetect.detect(value) == self._language, f"Detected language '{langdetect.detect(value)}', required '{self._language}'."
+      detected_lang = langdetect.detect(value)
+      return detected_lang == self._language, f"Detected language '{detected_lang}', required '{self._language}'."
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
@@ -586,7 +587,7 @@ class ParagraphChecker(Instruction):
         if index == 0 or index == len(paragraphs) - 1:
           num_paragraphs -= 1
         else:
-          return False
+          return False, "Invalid paragraph structure: empty paragraph between separators '***'."
 
     return num_paragraphs == self._num_paragraphs, \
             f"Found {num_paragraphs} paragraphs separated by '***', required exactly {self._num_paragraphs}."
@@ -751,7 +752,7 @@ class KeywordChecker(Instruction):
     missing_keywords = []
     for keyword in self._keywords:
       if not re.search(keyword, value, flags=re.IGNORECASE):
-        return missing_keywords.append(keyword)
+        missing_keywords.append(keyword)
     if len(missing_keywords) == 0:
         return True, f"All required keywords present: {self._keywords}."
     return False, f"Missing keywords: {missing_keywords}."
@@ -1001,9 +1002,9 @@ class ParagraphFirstWordCheck(Instruction):
     if self._nth_paragraph <= num_paragraphs:
       paragraph = paragraphs[self._nth_paragraph - 1].strip()
       if not paragraph:
-        return False
+        return False, f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph} is invalid."
     else:
-      return False
+      return False, f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}."
 
     first_word = ""
     punctuation = {".", ",", "?", "!", "'", '"'}
@@ -1022,7 +1023,7 @@ class ParagraphFirstWordCheck(Instruction):
     return (
         num_paragraphs == self._num_paragraphs
         and first_word == self._first_word
-    ), f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph } starts with '{first_word}', required '{self._first_word}'."
+    ), f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph} starts with '{first_word}', required '{self._first_word}'."
 
 
 # TODO(jeffrey) add relation - at least/at most?
@@ -1225,7 +1226,7 @@ class TwoResponsesChecker(Instruction):
     for index, response in enumerate(responses):
       if not response.strip():
         if index != 0 and index != len(responses) - 1:
-          return False
+          return False, f"Invalid response structure: empty segment found at position {index} between '******' separators."
       else:
         valid_responses.append(response)
     return (
@@ -1439,8 +1440,9 @@ class CapitalLettersEnglishChecker(Instruction):
     assert isinstance(value, str)
 
     try:
-      return value.isupper() and langdetect.detect(value) == "en", \
-              f"The response is in all capital letters: {value.isupper()}, required True. Detected language: {langdetect.detect(value)}, required en."
+      detected_lang = langdetect.detect(value)
+      return value.isupper() and detected_lang == "en", \
+              f"The response is in all capital letters: {value.isupper()}, required True. Detected language: {detected_lang}, required en."
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
@@ -1472,8 +1474,9 @@ class LowercaseLettersEnglishChecker(Instruction):
     assert isinstance(value, str)
 
     try:
-      return value.islower() and langdetect.detect(value) == "en", \
-              f"The response is in all lowercase letters: {value.islower()}, required True. Detected language: {langdetect.detect(value)}, required en."
+      detected_lang = langdetect.detect(value)
+      return value.islower() and detected_lang == "en", \
+              f"The response is in all lowercase letters: {value.islower()}, required True. Detected language: {detected_lang}, required en."
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
@@ -1567,9 +1570,9 @@ class CapitalWordFrequencyChecker(Instruction):
     feedback = f"Found {len(capital_words)} ALL-CAPS words: {capital_words}, required {self._comparison_relation} {self._frequency}."
     capital_words = len(capital_words)
     if self._comparison_relation == _COMPARISON_RELATION[0]:
-      return capital_words < self._frequency
+      return capital_words < self._frequency, feedback
     else:
-      return capital_words >= self._frequency
+      return capital_words >= self._frequency, feedback
 
 
 class QuotationChecker(Instruction):
