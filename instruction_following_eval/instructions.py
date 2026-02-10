@@ -229,8 +229,12 @@ class NumberOfSentences(Instruction):
     num_sentences = instructions_util.count_sentences(value)
     feedback = f"Found {num_sentences} sentences, required {self._comparison_relation} {self._num_sentences_threshold}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
-      return num_sentences < self._num_sentences_threshold, feedback  # pytype: disable=bad-return-type
+      if num_sentences >= self._num_sentences_threshold:
+        feedback += f" Shorten the response by at least {num_sentences - self._num_sentences_threshold + 1} sentense(s)."
+      return num_sentences < self._num_sentences_threshold, feedback # pytype: disable=bad-return-type
     elif self._comparison_relation == _COMPARISON_RELATION[1]:
+      if num_sentences < self._num_sentences_threshold:
+         feedback += f" Add at least {self._num_sentences_threshold - num_sentences} sentense(s) more to the response."
       return num_sentences >= self._num_sentences_threshold, feedback  # pytype: disable=bad-return-type
 
 
@@ -276,8 +280,11 @@ class PlaceholderChecker(Instruction):
     """
     placeholders = re.findall(r"\[.*?\]", value)
     num_placeholders = len(placeholders)
-    return num_placeholders >= self._num_placeholders,\
-          f"Found {num_placeholders} placeholders: {placeholders}, required at least {self._num_placeholders}"
+    feedback = f"Found {num_placeholders} placeholders: {placeholders}, required at least {self._num_placeholders}."
+    passed = (num_placeholders >= self._num_placeholders)
+    if not passed:
+      feedback += f" Add at least {self._num_placeholders - num_placeholders}."
+    return passed, feedback
 
 
 class BulletListChecker(Instruction):
@@ -326,8 +333,14 @@ class BulletListChecker(Instruction):
     bullet_lists = re.findall(r"^\s*\*[^\*].*$", value, flags=re.MULTILINE)
     bullet_lists_2 = re.findall(r"^\s*-.*$", value, flags=re.MULTILINE)
     num_bullet_lists = len(bullet_lists) + len(bullet_lists_2)
-    return num_bullet_lists == self._num_bullets, \
-          f"Found {num_bullet_lists} bullets, required {self._num_bullets}."
+    passed = (num_bullet_lists == self._num_bullets)
+    feedback = f"Found {num_bullet_lists} bullets, required exactly {self._num_bullets}."
+    if not passed:
+      if num_bullet_lists < self._num_bullets:
+        feedback += f" Rewrite the response to add exactly {self._num_bullets - num_bullet_lists}  more bullets."
+      else:
+        feedback += f" Rewrite the response to remove exactly {num_bullet_lists - self._num_bullets} bullets."
+    return passed, feedback
 
 
 class ConstrainedResponseChecker(Instruction):
@@ -411,7 +424,7 @@ class ConstrainedStartChecker(Instruction):
                                                 flags=re.MULTILINE)
     if response_with_constrained_start:
         return True, f"Response starts with '{self._starter}': True."
-    return False, f"Response starts with '{value.lstrip()[:len(self._starter)]}', expected start: '{self._starter}'."
+    return False, f"Response starts with '{value.lstrip()[:len(self._starter)]}', expected start: '{self._starter}'. Start the corrected response with '{self._starter}'."
 
 
 class HighlightSectionChecker(Instruction):
@@ -469,8 +482,12 @@ class HighlightSectionChecker(Instruction):
         num_highlights += 1
         to_print.append(highlight)
 
-    return num_highlights >= self._num_highlights, \
-            f"Found {num_highlights} hughlighted sections, required at least {self._num_highlights}. Highlighted sections: {to_print}."
+    feedback = f"Found {num_highlights} hughlighted sections, required at least {self._num_highlights}. Highlighted sections: {to_print}."
+    passed = num_highlights >= self._num_highlights
+    if not passed:
+      feedback += f" Add at least {self._num_highlights - num_highlights} highlighted sections."
+
+    return passed, feedback
 
 
 class SectionChecker(Instruction):
@@ -534,8 +551,11 @@ class SectionChecker(Instruction):
     section_splitter_patten = r"\s?" + self._section_spliter  + r"\s?\d+\s?"
     sections = re.split(section_splitter_patten, value)
     num_sections = len(sections) - 1
-    return num_sections >= self._num_sections, \
-            f"Found {num_sections} sections using splitter '{self._section_spliter}', required at least {self._num_sections}."
+    feedback = f"Found {num_sections} sections using splitter '{self._section_spliter}', required at least {self._num_sections}."
+    passed = num_sections >= self._num_sections
+    if not passed:
+      feedback += f" Add at least {self._num_sections - num_sections} sections using splitter '{self._section_spliter}."
+    return passed, feedback
 
 
 class ParagraphChecker(Instruction):
@@ -589,8 +609,15 @@ class ParagraphChecker(Instruction):
         else:
           return False, "Invalid paragraph structure: empty paragraph between separators '***'."
 
-    return num_paragraphs == self._num_paragraphs, \
-            f"Found {num_paragraphs} paragraphs separated by '***', required exactly {self._num_paragraphs}."
+    feedback = f"Found {num_paragraphs} paragraphs separated by '***', required exactly {self._num_paragraphs}."
+    passed = num_paragraphs == self._num_paragraphs
+    if not passed:
+      if num_paragraphs > self._num_paragraphs:
+        feedback += f" Shorted the response by exactly {num_paragraphs - self._num_paragraphs} paragraph(s)."
+      else:
+        feedback += f" Add exactly {self._num_paragraphs - num_paragraphs} paragraph(s) to the response."
+
+    return passed, feedback
 
 
 class PostscriptChecker(Instruction):
@@ -645,7 +672,9 @@ class PostscriptChecker(Instruction):
     else:
       postscript_pattern = r"\s*" + self._postscript_marker.lower() + r".*$"
     postscript = re.findall(postscript_pattern, value, flags=re.MULTILINE)
-    return True if postscript else False, f"Postscript marker '{self._postscript_marker}' found: {True if postscript else False}"
+    if postscript:
+      return True, f"Postscript marker '{self._postscript_marker}' found."
+    return False, f"No postscript marker '{self._postscript_marker}' found. Add a postscript starting with '{self._postscript_marker}'."
 
 
 class RephraseChecker(Instruction):
@@ -701,8 +730,9 @@ class RephraseChecker(Instruction):
     reference_without_changes = self.strip_changes(
         self._reference_without_change)
 
-    return response_without_changes == reference_without_changes, \
-            f"Response matches original text outside *changes*: {response_without_changes == reference_without_changes}."
+    if response_without_changes == reference_without_changes:
+      return True, f"Response matches original text outside *changes*."
+    return False, f"Response does not match original text outside *changes*. Copy the original text to the corrected response before and after *changes*."
 
   def is_change(self, response):
     """Check if there is change in the response in the form of *change me*."""
@@ -755,7 +785,7 @@ class KeywordChecker(Instruction):
         missing_keywords.append(keyword)
     if len(missing_keywords) == 0:
         return True, f"All required keywords present: {self._keywords}."
-    return False, f"Missing keywords: {missing_keywords}."
+    return False, f"Missing keywords: {missing_keywords}. Add them to the response."
 
 
 class KeywordFrequencyChecker(Instruction):
@@ -821,8 +851,12 @@ class KeywordFrequencyChecker(Instruction):
         self._keyword, value, flags=re.IGNORECASE))
     feedback = f"Keyword '{self._keyword}' found {actual_occurrences} times, required {self._comparison_relation} {self._frequency}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
+      if actual_occurrences >= self._frequency:
+        feedback += f" Remove/replace at least {actual_occurrences - self._frequency + 1} keyword(s)."
       return actual_occurrences < self._frequency, feedback
     elif self._comparison_relation == _COMPARISON_RELATION[1]:
+      if actual_occurrences < self._frequency:
+        feedback += f" Add at least {self._frequency - actual_occurrences} more keyword(s)."
       return actual_occurrences >= self._frequency, feedback  # pytype: disable=bad-return-type
 
 
@@ -881,8 +915,12 @@ class NumberOfWords(Instruction):
     num_words = instructions_util.count_words(value)
     feedback = f"Found {num_words} words, required {self._comparison_relation} {self._num_words}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
+      if num_words >= self._num_words:
+        feedback += f" Shorted the response by at least {num_words - self._num_words + 1} word(s)."
       return num_words < self._num_words, feedback
     elif self._comparison_relation == _COMPARISON_RELATION[1]:
+      if num_words < self._num_words:
+        feedback += f" Add at least {self._num_words - num_words} word(s) to the response."
       return num_words >= self._num_words, feedback  # pytype: disable=bad-return-type
 
 
@@ -1020,10 +1058,18 @@ class ParagraphFirstWordCheck(Instruction):
         break
       first_word += letter.lower()
 
+    feedback = f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph} starts with '{first_word}', required '{self._first_word}'."
+    if num_paragraphs < self._num_paragraphs:
+      feedback += f" Extend the response by exactly {self._num_paragraphs - num_paragraphs} paragraph(s)."
+    if num_paragraphs > self._num_paragraphs:
+      feedback += f" Shorten the response by exactly {num_paragraphs - self._num_paragraphs} paragraph(s)."
+    if first_word != self._first_word:
+      feedback += f" Start paragraph {self._nth_paragraph} with '{self._first_word}'."
+
     return (
         num_paragraphs == self._num_paragraphs
         and first_word == self._first_word
-    ), f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph} starts with '{first_word}', required '{self._first_word}'."
+    ), feedback
 
 
 # TODO(jeffrey) add relation - at least/at most?
@@ -1082,7 +1128,14 @@ class KeySentenceChecker(Instruction):
         count += 1
         key_sentences_found.append(sentence)
 
-    return count == self._num_sentences, f"Found {count} key sentences, required {self._num_sentences}. Key sentences found: {key_sentences_found}."
+    feedback = f"Found {count} key sentences, required {self._num_sentences}. Key sentences found: {key_sentences_found}."
+    passed = (count == self._num_sentences)
+    if not passed:
+      if count > self._num_sentences:
+        feedback += f" Remove / replace exactly {count - self._num_sentences} key sentence(s)."
+      else:
+        feedback += f" Add exactly {count - self._num_sentences} more key sentence(s)."
+    return passed, feedback
 
 
 class ForbiddenWords(Instruction):
@@ -1130,7 +1183,7 @@ class ForbiddenWords(Instruction):
         forbidden_words_used.append(word)
     if len(forbidden_words_used) == 0:
       return True, "No forbidden words detected."
-    return False, f"Forbidden words detected: {forbidden_words_used}."
+    return False, f"Forbidden words detected: {forbidden_words_used}. Remove / replace them."
 
 
 class RephraseParagraph(Instruction):
@@ -1189,8 +1242,14 @@ class RephraseParagraph(Instruction):
       if min(dict_original[word], dict_val[word]) > 0:
         shared_words.append(word)
 
-    return similar_words >= self._low and similar_words <= self._high, \
-            f"Found {similar_words} shared words with original, required between {self._low} and {self._high}. Shared words: {shared_words}."
+    feedback = f"Found {similar_words} shared words with original, required between {self._low} and {self._high}. Shared words: {shared_words}."
+    passed = (similar_words >= self._low and similar_words <= self._high)
+    if not passed:
+      if similar_words > self._high:
+        feedback += f" Remove or replace at least {similar_words - self._high} (and no more than {similar_words - self._low}) shared words."
+      else:
+        feedback += f" Add at least {self._low - similar_words} (and no more than {self._low - similar_words}) shared words."
+    return passed, feedback
 
 
 class TwoResponsesChecker(Instruction):
@@ -1229,10 +1288,18 @@ class TwoResponsesChecker(Instruction):
           return False, f"Invalid response structure: empty segment found at position {index} between '******' separators."
       else:
         valid_responses.append(response)
+    feedback = f"Detected {valid_responses} valid responses separated by '******', required 2."
+    if len(valid_responses) != 2:
+      if len(valid_responses) < 2:
+        feedback += f" Add exactly {2 - len(valid_responses)} more response(s) separated by '******'."
+      else:
+        feedback += f" Shorten by exactly {len(valid_responses) - 2} response(s) separated by '******'."
+    if len(valid_responses) == 2 and valid_responses[0].strip() == valid_responses[1].strip():
+      feedback += " The responses are identical. Write two different responses."
     return (
         len(valid_responses) == 2
         and valid_responses[0].strip() != valid_responses[1].strip()
-    ), f"Detected {valid_responses} valid responses separated by '******', required 2."
+    ), feedback
 
 
 class RepeatPromptThenAnswer(Instruction):
@@ -1268,8 +1335,8 @@ class RepeatPromptThenAnswer(Instruction):
 
   def check_following(self, value):
     if value.strip().lower().startswith(self._prompt_to_repeat.strip().lower()):
-      return True, "Response starts with prompt: True."
-    return False, f"Response starts with '{value.strip().lower()[:len(self._prompt_to_repeat.strip())]}', expected start: '{self._prompt_to_repeat.strip().lower()}'."
+      return True, "Response starts with prompt."
+    return False, f"Response starts with '{value.strip().lower()[:len(self._prompt_to_repeat.strip())]}', expected start: '{self._prompt_to_repeat.strip().lower()}'. Start the corrected response with '{self._prompt_to_repeat.strip().lower()}'."
 
 
 class EndChecker(Instruction):
@@ -1307,7 +1374,7 @@ class EndChecker(Instruction):
     self._end_phrase = self._end_phrase.strip().lower()
     if value.endswith(self._end_phrase):
       return True, f"Response ends with '{self._end_phrase}': True."
-    return False, f"Response ends with '{value[-len(self._end_phrase):]}', expected ending: '{self._end_phrase}'."
+    return False, f"Response ends with '{value[-len(self._end_phrase):]}', expected ending: '{self._end_phrase}'. End the corrected response with '{self._end_phrase}'."
 
 
 class TitleChecker(Instruction):
@@ -1337,7 +1404,7 @@ class TitleChecker(Instruction):
     for title in titles:
       if title.lstrip("<").rstrip(">").strip():
         return True, f"Valid title present: {title}."
-    return False, f"None of the titles {titles} found."
+    return False, f"None of the titles {titles} found. Use at least one of the titles."
 
 
 class LetterFrequencyChecker(Instruction):
@@ -1413,8 +1480,12 @@ class LetterFrequencyChecker(Instruction):
     letters = collections.Counter(value)
     feedback = f"Letter '{self._letter}' appears {letters[self._letter]} times, required {self._comparison_relation} {self._frequency}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
+      if letters[self._letter] >= self._frequency:
+        feedback += f" Rewrite the response to remove at least {letters[self._letter] - self._frequency + 1} letter(s) '{self._letter}'."
       return letters[self._letter] < self._frequency, feedback
     else:
+      if letters[self._letter] < self._frequency:
+        feedback += f" Rewrite the response to add at least {letters[self._letter] - self._frequency + 1} more letter(s) '{self._letter}'."
       return letters[self._letter] >= self._frequency, feedback
 
 
@@ -1441,8 +1512,12 @@ class CapitalLettersEnglishChecker(Instruction):
 
     try:
       detected_lang = langdetect.detect(value)
-      return value.isupper() and detected_lang == "en", \
-              f"The response is in all capital letters: {value.isupper()}, required True. Detected language: {detected_lang}, required en."
+      feedback = f"The response is in all capital letters: {value.isupper()}, required True. Detected language: {detected_lang}, required en."
+      if not value.isupper():
+        feedback += " Use only capital letters."
+      if detected_lang != "en":
+        feedback += " Respond in English."
+      return value.isupper() and detected_lang == "en", feedback
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
@@ -1475,8 +1550,12 @@ class LowercaseLettersEnglishChecker(Instruction):
 
     try:
       detected_lang = langdetect.detect(value)
-      return value.islower() and detected_lang == "en", \
-              f"The response is in all lowercase letters: {value.islower()}, required True. Detected language: {detected_lang}, required en."
+      feedback = f"The response is in all lowercase letters: {value.islower()}, required True. Detected language: {detected_lang}, required en."
+      if not value.islower():
+        feedback += " Use only lowercase letters."
+      if detected_lang != "en":
+        feedback += " Respond in English."
+      return value.islower() and detected_lang == "en", feedback
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
@@ -1570,8 +1649,12 @@ class CapitalWordFrequencyChecker(Instruction):
     feedback = f"Found {len(capital_words)} ALL-CAPS words: {capital_words}, required {self._comparison_relation} {self._frequency}."
     capital_words = len(capital_words)
     if self._comparison_relation == _COMPARISON_RELATION[0]:
+      if capital_words >= self._frequency:
+        feedback += f" Turn at least {capital_words - self._frequency + 1} word(s) into lower case."
       return capital_words < self._frequency, feedback
     else:
+      if capital_words < self._frequency:
+        feedback += f" Turn at least {self._frequency - capital_words} word(s) into upper case."
       return capital_words >= self._frequency, feedback
 
 
