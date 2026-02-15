@@ -1348,9 +1348,16 @@ class RepeatPromptThenAnswer(Instruction):
     return ["prompt_to_repeat"]
 
   def check_following(self, value):
-    if value.strip().lower().startswith(self._prompt_to_repeat.strip().lower()):
+    stripped_value = value.strip()
+    expected_prompt = self._prompt_to_repeat.strip()
+    if stripped_value.lower().startswith(expected_prompt.lower()):
       return True, "Response starts with prompt."
-    return False, f"Response starts with '{value.strip().lower()[:len(self._prompt_to_repeat.strip())]}', expected start: '{self._prompt_to_repeat.strip().lower()}'. Start the corrected response with '{self._prompt_to_repeat.strip().lower()}'."
+    actual_start = stripped_value[:len(expected_prompt)]
+    return False, (
+        f"Response starts with '{actual_start}', expected start: "
+        f"'{expected_prompt}'. Start the corrected response with "
+        f"'{expected_prompt}'."
+    )
 
 
 class EndChecker(Instruction):
@@ -1384,11 +1391,16 @@ class EndChecker(Instruction):
 
   def check_following(self, value):
     """Checks if the response ends with the expected phrase."""
-    value = value.strip().strip("\"").lower()
-    self._end_phrase = self._end_phrase.strip().lower()
-    if value.endswith(self._end_phrase):
-      return True, f"Response ends with '{self._end_phrase}': True."
-    return False, f"Response ends with '{value[-len(self._end_phrase):]}', expected ending: '{self._end_phrase}'. End the corrected response with '{self._end_phrase}'."
+    stripped_value = value.strip().strip("\"")
+    expected_phrase = self._end_phrase.strip()
+    if stripped_value.lower().endswith(expected_phrase.lower()):
+      return True, f"Response ends with '{expected_phrase}': True."
+    actual_ending = stripped_value[-len(expected_phrase):] if expected_phrase else ""
+    return False, (
+        f"Response ends with '{actual_ending}', expected ending: "
+        f"'{expected_phrase}'. End the corrected response with "
+        f"'{expected_phrase}'."
+    )
 
 
 class TitleChecker(Instruction):
