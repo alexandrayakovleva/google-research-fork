@@ -1,9 +1,9 @@
 ================================================================
 ./instruction_following_eval/data/gpt-5/eval_results_strict.jsonl Accuracy Scores:
-prompt-level: 0.9279112754158965
-instruction-level: 0.947242206235012
+prompt-level: 0.9297597042513863
+instruction-level: 0.9484412470023981
 
-change_case 0.8426966292134831
+change_case 0.8539325842696629
 combination 0.9692307692307692
 detectable_content 0.9433962264150944
 detectable_format 0.9554140127388535
@@ -14,7 +14,7 @@ punctuation 0.9242424242424242
 startend 0.9850746268656716
 
 change_case:capital_word_frequency 0.88
-change_case:english_capital 0.72
+change_case:english_capital 0.76
 change_case:english_lowercase 0.8974358974358975
 combination:repeat_prompt 0.975609756097561
 combination:two_responses 0.9583333333333334
