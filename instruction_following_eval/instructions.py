@@ -1460,15 +1460,15 @@ class LetterFrequencyChecker(Instruction):
     Returns:
       A string representing the instruction description.
     """
-    if (
-        not letter
-        or len(letter) > 1
-        or ord(letter.lower()) < 97
-        or ord(letter.lower()) > 122
-    ):
+    if not isinstance(letter, str):
+      letter = None
+
+    cleaned_letter = letter.strip() if letter else ""
+    if len(cleaned_letter) != 1:
       self._letter = random.choice(list(string.ascii_letters))
     else:
-      self._letter = letter.strip()
+      self._letter = cleaned_letter
+
     self._letter = self._letter.lower()
 
     self._frequency = let_frequency
