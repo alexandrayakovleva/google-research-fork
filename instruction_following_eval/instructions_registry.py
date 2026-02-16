@@ -48,6 +48,10 @@ _LASTWORD = "last_word:"
 
 _COUNT = "count:"
 
+_PARAGRAPH = "paragraphs:"
+
+_LETTER = "letters:"
+
 
 INSTRUCTION_DICT = {
     _KEYWORD + "existence": instructions.KeywordChecker,

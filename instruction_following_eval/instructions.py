@@ -45,7 +45,7 @@ _NUM_BULLETS = 5
 
 # The options of constrained response.
 _CONSTRAINED_RESPONSE_OPTIONS = (
-    "My answer is yes.", "My answer is no.", "My answer is maybe.")
+    "My answer is yes.", "My answer is no.", "My answer is maybe.", 'I think yes.', 'I think no.', 'I think maybe.')
 
 # The options of starter keywords.
 _STARTER_OPTIONS = ("I would say", "My answer is", "I believe",
@@ -244,11 +244,11 @@ class NumberOfSentences(Instruction):
     feedback = f"Found {num_sentences} sentences, required {self._comparison_relation} {self._num_sentences_threshold}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
       if num_sentences >= self._num_sentences_threshold:
-        feedback += f" Shorten the response by at least {num_sentences - self._num_sentences_threshold + 1} sentense(s)."
+        feedback += f" Shorten the response by at least {num_sentences - self._num_sentences_threshold + 1} sentence(s)."
       return num_sentences < self._num_sentences_threshold, feedback # pytype: disable=bad-return-type
     elif self._comparison_relation == _COMPARISON_RELATION[1]:
       if num_sentences < self._num_sentences_threshold:
-         feedback += f" Add at least {self._num_sentences_threshold - num_sentences} sentense(s) more to the response."
+         feedback += f" Add at least {self._num_sentences_threshold - num_sentences} sentence(s) more to the response."
       return num_sentences >= self._num_sentences_threshold, feedback  # pytype: disable=bad-return-type
 
 
@@ -496,7 +496,7 @@ class HighlightSectionChecker(Instruction):
         num_highlights += 1
         to_print.append(highlight)
 
-    feedback = f"Found {num_highlights} hughlighted sections, required at least {self._num_highlights}. Highlighted sections: {to_print}."
+    feedback = f"Found {num_highlights} highlighted sections, required at least {self._num_highlights}. Highlighted sections: {to_print}."
     passed = num_highlights >= self._num_highlights
     if not passed:
       feedback += f" Add at least {self._num_highlights - num_highlights} highlighted sections."
@@ -627,7 +627,7 @@ class ParagraphChecker(Instruction):
     passed = num_paragraphs == self._num_paragraphs
     if not passed:
       if num_paragraphs > self._num_paragraphs:
-        feedback += f" Shorted the response by exactly {num_paragraphs - self._num_paragraphs} paragraph(s)."
+        feedback += f" Shorten the response by exactly {num_paragraphs - self._num_paragraphs} paragraph(s)."
       else:
         feedback += f" Add exactly {self._num_paragraphs - num_paragraphs} paragraph(s) to the response."
 
@@ -930,7 +930,7 @@ class NumberOfWords(Instruction):
     feedback = f"Found {num_words} words, required {self._comparison_relation} {self._num_words}."
     if self._comparison_relation == _COMPARISON_RELATION[0]:
       if num_words >= self._num_words:
-        feedback += f" Shorted the response by at least {num_words - self._num_words + 1} word(s)."
+        feedback += f" Shorten the response by at least {num_words - self._num_words + 1} word(s)."
       return num_words < self._num_words, feedback
     elif self._comparison_relation == _COMPARISON_RELATION[1]:
       if num_words < self._num_words:
@@ -1070,19 +1070,20 @@ class ParagraphFirstWordCheck(Instruction):
     for letter in word:
       if letter in punctuation:
         break
-      first_word += letter.lower()
+      first_word += letter
+    first_word_normalized = first_word.lower()
 
     feedback = f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph} starts with '{first_word}', required '{self._first_word}'."
     if num_paragraphs < self._num_paragraphs:
       feedback += f" Extend the response by exactly {self._num_paragraphs - num_paragraphs} paragraph(s)."
     if num_paragraphs > self._num_paragraphs:
       feedback += f" Shorten the response by exactly {num_paragraphs - self._num_paragraphs} paragraph(s)."
-    if first_word != self._first_word:
+    if first_word_normalized != self._first_word:
       feedback += f" Start paragraph {self._nth_paragraph} with '{self._first_word}'."
 
     return (
         num_paragraphs == self._num_paragraphs
-        and first_word == self._first_word
+        and first_word_normalized == self._first_word
     ), feedback
 
 
@@ -1243,18 +1244,23 @@ class RephraseParagraph(Instruction):
     return ["original_paragraph", "low", "high"]
 
   def check_following(self, value):
-    val_words = re.findall(r"\w+", value.lower())
-    original_words = re.findall(r"\w+", self._original_paragraph.lower())
+    val_words = re.findall(r"\w+", value)
+    original_words = re.findall(r"\w+", self._original_paragraph)
     similar_words = 0
 
-    dict_val = collections.Counter(val_words)
-    dict_original = collections.Counter(original_words)
+    dict_val = collections.Counter(word.lower() for word in val_words)
+    dict_original = collections.Counter(word.lower() for word in original_words)
+    original_case_by_lower = {}
+    for word in original_words:
+      lower_word = word.lower()
+      if lower_word not in original_case_by_lower:
+        original_case_by_lower[lower_word] = word
 
     shared_words = []
     for word in dict_original:
       similar_words += min(dict_original[word], dict_val[word])
       if min(dict_original[word], dict_val[word]) > 0:
-        shared_words.append(word)
+        shared_words.append(original_case_by_lower.get(word, word))
 
     feedback = f"Found {similar_words} shared words with original, required between {self._low} and {self._high}. Shared words: {shared_words}."
     passed = (similar_words >= self._low and similar_words <= self._high)
@@ -1511,7 +1517,7 @@ class LetterFrequencyChecker(Instruction):
       return letters[self._letter] < self._frequency, feedback
     else:
       if letters[self._letter] < self._frequency:
-        feedback += f" Rewrite the response to add at least {letters[self._letter] - self._frequency + 1} more letter(s) '{self._letter}'."
+        feedback += f" Rewrite the response to add at least {self._frequency - letters[self._letter]} more letter(s) '{self._letter}'."
       return letters[self._letter] >= self._frequency, feedback
 
 
@@ -1910,6 +1916,8 @@ class AdjacentLetterChecker(Instruction):
 
     def check_following(self, value):
         """Checks if no two adjacent words start with consecutive letters of the alphabet."""
+        if not value.strip():
+            return False, "Response is empty."
         words = value.split()
         empty_word_feedback = "Found a word without valid letters."
         violation_feedback = "Adjacent words start with consecutive letters: "
@@ -1949,6 +1957,8 @@ class SquareBracketChecker(Instruction):
 
     def check_following(self, value):
         """Checks if every word in the response is enclosed within square brackets."""
+        if not value.strip():
+            return False, "Response is empty."
         words = value.split()
         words_without_brackets = []
         for w in words:
@@ -2106,10 +2116,12 @@ class ExcludeWordHarderChecker(Instruction):
 
     def check_following(self, value):
         """Check if the response does not contain the expected keywords."""
+        if not value.strip():
+            return False, "Response is empty."
         passed = " " + self._keyword + " " not in value
         if not passed:
            return False, f"Forbidden keyword '{self._keyword}' found. Exclude it from the response."
-        return True, f"Keyword '{self._keyword}' is not found: True."
+        return True, f"Keyword '{self._keyword}' is not found."
 
 
 class ParagraphBasicChecker(Instruction):
@@ -2258,6 +2270,8 @@ class FirstWordSentChecker(Instruction):
           True if the first word of each sentence is the expected word;
           otherwise, False.
         """
+        if not value.strip():
+            return False, "Response is empty."
         sentences = instructions_util.split_into_sentences(value)
 
         # Check if the first word of each sentence matches the expected word
@@ -2313,12 +2327,13 @@ class FirstWordAnswerChecker(Instruction):
           True if the first word of each sentence is the expected word;
           otherwise, False.
         """
-        if not value.strip() or len(value.split()) == 0:
-            return False
-        first_word = value.split()[0].strip()
+        words = value.split()
+        if not words:
+            return False, "Response is empty. Start your response with the required word."
+        first_word = words[0].strip()
         passed = first_word.lower() == self._first_word.lower()
         if not passed:
-           False, f"First word of response: '{first_word}', expected '{self._first_word}'. Start your response with '{self._first_word}'."
+           return False, f"First word of response: '{first_word}', expected '{self._first_word}'. Start your response with '{self._first_word}'."
         return True, f"Response starts with '{self._first_word}': True."
 
 
@@ -2366,6 +2381,8 @@ class LastWordSentChecker(Instruction):
           True if the first word of each sentence is the expected word;
           otherwise, False.
         """
+        if not value.strip():
+            return False, "Response is empty."
         sentences = instructions_util.split_into_sentences(value)
 
         # Check if the first word of each sentence matches the expected word
@@ -2423,12 +2440,15 @@ class LastWordAnswerChecker(Instruction):
           True if the first word of each sentence is the expected word;
           otherwise, False.
         """
-        last_word = value.split()[-1].strip()
+        words = value.split()
+        if not words:
+          return False, "Response is empty. Provide a response ending with the required word."
+        last_word = words[-1].strip()
         # remove any punctuation from last_word
         last_word = re.sub(r"[^\w\s]", "", last_word)
         passed = last_word.lower() == self._last_word.lower()
         if not passed:
-          False, f"Last word of response: '{last_word}', expected '{self._last_word}'. Rewrite the response so that it ends with '{self._last_word}'."
+          return False, f"Last word of response: '{last_word}', expected '{self._last_word}'. Rewrite the response so that it ends with '{self._last_word}'."
         return True, f"Response ends with '{self._last_word}': True."
 
 
@@ -2451,6 +2471,8 @@ class BiGramWrappingChecker(Instruction):
 
     def check_following(self, value):
         """Checks if every word bigram is enclosed within double angular brackets."""
+        if not value.strip():
+            return False, "Response is empty."
         words = value.split()
         bigrams = []
         for i in range(0, len(words) - 1, 2):
@@ -2491,7 +2513,7 @@ class CopyingSimpleChecker(Instruction):
         passed = value.strip().lower() == self._prompt_to_repeat.strip().lower()
         if passed:
            return True, "Response repeats the actual request: True."
-        return False, f"Response must exactly repeats the request (case insensitive): '{self._prompt_to_repeat}'."
+        return False, f"Response must exactly repeat the request (case insensitive): '{self._prompt_to_repeat}'."
 
 
 class CopyingMultipleChecker(Instruction):
@@ -2539,7 +2561,7 @@ class CopyingMultipleChecker(Instruction):
           if p.strip().lower() != self._prompt_to_repeat.strip().lower():
             feedbacks.append(f"Repeat #{i} does not exactly match the request (case-insensitive): '{p.strip()}' != 'self._prompt_to_repeat.strip()'.")
         if len(feedbacks) == 0:
-           return True, f"Response repeats the requiest {self._N} times, separated by '******': True."
+           return True, f"Response repeats the request {self._N} times, separated by '******': True."
         return False, " ".join(feedbacks)
 
 
@@ -2668,7 +2690,7 @@ class LetterCountingChecker(Instruction):
             return len(letters) >= self._N, feedback
         elif self._relation == "less than":
             if len(letters) >= self._N:
-              feedback += f" Shorted the response by at least {len(letters) - self._N + 1} letters."
+              feedback += f" Shorten the response by at least {len(letters) - self._N + 1} letters."
             return len(letters) < self._N, feedback  # pytype: disable=bad-return-type
 
 
@@ -2760,22 +2782,29 @@ class CountUniqueChecker(Instruction):
 
     def check_following(self, value):
         """Checks that the response contains unique words."""
+        if not value.strip():
+            return False, "Response is empty."
         words = instructions_util.nltk.word_tokenize(value)
-        seen = set()
-        repeated_words_cnt = dict()
+        first_seen_form = {}
+        word_counts = collections.Counter()
         for w in words:
             lw = w.lower()
-            if lw in seen:
-                if lw not in repeated_words_cnt:
-                   repeated_words_cnt[lw] = 1
-                repeated_words_cnt[lw] += 1
-            seen.add(lw)
+            if lw not in first_seen_form:
+                first_seen_form[lw] = w
+            word_counts[lw] += 1
+        repeated_words_cnt = {
+            word: count for word, count in word_counts.items() if count > 1
+        }
         if len(repeated_words_cnt) == 0:
           return True, "No repeated words found in the response: True."
-        feedback = f"Found {len(repeated_words_cnt)} repeated words in the response:"
-        for word, cnt in repeated_words_cnt.items():
-           feedback += f" {word} -- {cnt} times,"
-        feedback[-1] = '.'
+        repeated_words = ", ".join(
+            f"{first_seen_form[word]} -- {cnt} times"
+            for word, cnt in repeated_words_cnt.items()
+        )
+        feedback = (
+            f"Found {len(repeated_words_cnt)} repeated words in the response: "
+            f"{repeated_words}."
+        )
         return False, feedback
 
 
@@ -2926,7 +2955,7 @@ class KeywordSpecificPositionChecker(Instruction):
         """
         sentences = instructions_util.split_into_sentences(value)
         if len(sentences) < self._n:
-            return False, f"Response contains {len(sentences)}, required at least {self._n}, and the {self._m}th word in the {self._n}th sentense must be '{self._keyword}'."
+            return False, f"Response contains {len(sentences)}, required at least {self._n}, and the {self._m}th word in the {self._n}th sentence must be '{self._keyword}'."
         words = instructions_util.nltk.word_tokenize(sentences[self._n - 1])
         if len(words) < self._m:
             return False, f"Sentence {self._n} contains {len(words)}, required at least {self._m}, and the {self._m}th word must be '{self._keyword}'."
@@ -2961,8 +2990,12 @@ class StartEndChecker(Instruction):
         words = instructions_util.nltk.word_tokenize(value)
         if len(words) < 2:
             return False, "Need at least two words in the response."
-        feedback = f"The first word of the response: {words[0]}, the last word of the response: {words[-1]}. Expected the first and the second words are the same in lowercase."
+        feedback = (
+            f"The first word of the response: {words[0]}, the last word of "
+            f"the response: {words[-1]}. Expected the first and last words to "
+            "match (case-insensitive)."
+        )
         passed = words[0].lower() == words[-1].lower()
         if not passed:
-           return False, feedback + f" {words[0].lower()} != {words[-1].lower()}."
-        return True, feedback + f" {words[0].lower()} == {words[-1].lower()}."
+           return False, feedback + f" {words[0]} != {words[-1]}."
+        return True, feedback + f" {words[0]} == {words[-1]}."

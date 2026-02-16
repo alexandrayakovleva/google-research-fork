@@ -18,9 +18,39 @@
 import collections
 import dataclasses
 import json
+import re
 from typing import Dict, Optional, Sequence, Union
 
 from instruction_following_eval import instructions_registry
+
+
+def _normalize_prompt(prompt: str) -> str:
+  """Normalizes prompt text for robust key matching."""
+  prompt = prompt.replace("\r\n", "\n").strip()
+  return re.sub(r"\s+", " ", prompt)
+
+
+def _get_response_for_prompt(inp_prompt, prompt_to_response):
+  """Fetches response for a prompt with normalized fallback."""
+  response = prompt_to_response.get(inp_prompt)
+  if response is not None:
+    return response
+  response = prompt_to_response.get(_normalize_prompt(inp_prompt))
+  if response is not None:
+    return response
+  return None
+
+
+def _is_missing_response(response) -> bool:
+  """Returns True when response should be treated as missing."""
+  if response is None or not isinstance(response, str):
+    return True
+
+  text = response.strip()
+  if not text:
+    return True
+
+  return False
 
 
 @dataclasses.dataclass
@@ -78,7 +108,18 @@ def test_instruction_following_strict(
     prompt_to_response,
 ):
   """Tests response to see if instrutions are followed."""
-  response = prompt_to_response[inp.prompt]
+  response = _get_response_for_prompt(inp.prompt, prompt_to_response)
+  if _is_missing_response(response):
+    return OutputExample(
+        instruction_id_list=inp.instruction_id_list,
+        prompt=inp.prompt,
+        response="",
+        follow_all_instructions=False,
+        follow_instruction_list=[False] * len(inp.instruction_id_list),
+        feedback_list=[
+            "Missing response for this prompt in --input_response_data."
+        ] * len(inp.instruction_id_list),
+    )
   instruction_list = inp.instruction_id_list
   is_following_list = []
   feedback_list = []
@@ -114,7 +155,18 @@ def test_instruction_following_loose(
     prompt_to_response,
 ):
   """Tests response for an upper bound for following instructions."""
-  response = prompt_to_response[inp.prompt]
+  response = _get_response_for_prompt(inp.prompt, prompt_to_response)
+  if _is_missing_response(response):
+    return OutputExample(
+        instruction_id_list=inp.instruction_id_list,
+        prompt=inp.prompt,
+        response="",
+        follow_all_instructions=False,
+        follow_instruction_list=[False] * len(inp.instruction_id_list),
+        feedback_list=[
+            "Missing response for this prompt in --input_response_data."
+        ] * len(inp.instruction_id_list),
+    )
   r = response.split("\n")
   response_remove_first = "\n".join(r[1:]).strip()
   response_remove_last = "\n".join(r[:-1]).strip()
@@ -179,7 +231,12 @@ def read_prompt_to_response_dict(input_jsonl_filename):
   with open(input_jsonl_filename, "r") as f:
     for l in f:
       example = json.loads(l)
-      return_dict[example["prompt"]] = example["response"]
+      prompt = example["prompt"]
+      response = example["response"]
+      return_dict[prompt] = response
+      normalized_prompt = _normalize_prompt(prompt)
+      if normalized_prompt not in return_dict:
+        return_dict[normalized_prompt] = response
   return return_dict
 
 
@@ -233,4 +290,3 @@ def print_report(outputs):
   for instruction_id in sorted(tier1_total.keys()):
     accuracy = tier1_correct[instruction_id] / tier1_total[instruction_id]
     print(f"{instruction_id} {accuracy}")
-
