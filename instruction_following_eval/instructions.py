@@ -997,12 +997,9 @@ class ParagraphFirstWordCheck(Instruction):
       self._num_paragraphs = random.randint(1, _NUM_PARAGRAPHS)
 
     self._nth_paragraph = nth_paragraph
-    if (
-        self._nth_paragraph is None
-        or self._nth_paragraph <= 0
-        or self._nth_paragraph > self._num_paragraphs
-    ):
-      self._nth_paragraph = random.randint(1, self._num_paragraphs + 1)
+    if self._nth_paragraph is None:
+      # Randomly sample a valid paragraph index.
+      self._nth_paragraph = random.randint(1, self._num_paragraphs)
 
     self._first_word = first_word
     if self._first_word is None:
@@ -1073,17 +1070,17 @@ class ParagraphFirstWordCheck(Instruction):
       first_word += letter
     first_word_normalized = first_word.lower()
 
-    feedback = f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph} starts with '{first_word}', required '{self._first_word}'."
+    feedback = f"Paragraph count={num_paragraphs}, required={self._num_paragraphs}. Paragraph {self._nth_paragraph} starts with '{first_word}', required '{self._first_word}' (case-insensitive): passed = {bool(first_word_normalized == self._first_word.lower())}."
     if num_paragraphs < self._num_paragraphs:
       feedback += f" Extend the response by exactly {self._num_paragraphs - num_paragraphs} paragraph(s)."
     if num_paragraphs > self._num_paragraphs:
       feedback += f" Shorten the response by exactly {num_paragraphs - self._num_paragraphs} paragraph(s)."
-    if first_word_normalized != self._first_word:
-      feedback += f" Start paragraph {self._nth_paragraph} with '{self._first_word}'."
+    if first_word_normalized != self._first_word.lower():
+      feedback += f" Start paragraph {self._nth_paragraph} with '{self._first_word}' (case-insensitive)."
 
     return (
         num_paragraphs == self._num_paragraphs
-        and first_word_normalized == self._first_word
+        and first_word_normalized == self._first_word.lower()
     ), feedback
 
 

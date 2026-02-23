@@ -1,9 +1,9 @@
 ================================================================
-./instruction_following_eval/data/qwen3-32b-no-thinking/eval_results_strict.jsonl Accuracy Scores:
+instruction_following_eval/data/qwen3-32b-no-thinking/eval_results_strict.jsonl Accuracy Scores:
 prompt-level: 0.8317929759704251
-instruction-level: 0.8812949640287769
+instruction-level: 0.8800959232613909
 
-change_case 0.8764044943820225
+change_case 0.8651685393258427
 combination 0.8923076923076924
 detectable_content 0.9811320754716981
 detectable_format 0.9363057324840764
@@ -14,7 +14,7 @@ punctuation 0.9696969696969697
 startend 0.9701492537313433
 
 change_case:capital_word_frequency 0.72
-change_case:english_capital 0.92
+change_case:english_capital 0.88
 change_case:english_lowercase 0.9487179487179487
 combination:repeat_prompt 0.8536585365853658
 combination:two_responses 0.9583333333333334
@@ -39,22 +39,22 @@ punctuation:no_comma 0.9696969696969697
 startend:end_checker 0.9230769230769231
 startend:quotation 1.0
 ================================================================
-./instruction_following_eval/data/qwen3-32b-no-thinking/eval_results_loose.jsonl Accuracy Scores:
-prompt-level: 0.866913123844732
+instruction_following_eval/data/qwen3-32b-no-thinking/eval_results_loose.jsonl Accuracy Scores:
+prompt-level: 0.8687615526802218
 instruction-level: 0.9064748201438849
 
-change_case 0.9101123595505618
+change_case 0.898876404494382
 combination 0.9076923076923077
 detectable_content 0.9811320754716981
 detectable_format 0.9426751592356688
-keywords 0.8650306748466258
+keywords 0.8711656441717791
 language 1.0
 length_constraints 0.7902097902097902
 punctuation 0.9696969696969697
 startend 1.0
 
 change_case:capital_word_frequency 0.76
-change_case:english_capital 0.96
+change_case:english_capital 0.92
 change_case:english_lowercase 0.9743589743589743
 combination:repeat_prompt 0.8536585365853658
 combination:two_responses 1.0
@@ -69,7 +69,7 @@ detectable_format:title 0.972972972972973
 keywords:existence 0.9743589743589743
 keywords:forbidden_words 0.8775510204081632
 keywords:frequency 0.9523809523809523
-keywords:letter_frequency 0.6060606060606061
+keywords:letter_frequency 0.6363636363636364
 language:response_language 1.0
 length_constraints:nth_paragraph_first_word 0.8333333333333334
 length_constraints:number_paragraphs 0.8518518518518519
