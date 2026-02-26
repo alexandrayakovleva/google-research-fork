@@ -19,9 +19,13 @@ from datasets import load_dataset
 
 TARGET_INSTRUCTION_IDS = [
     "change_case:capital_word_frequency",
+    "combination:repeat_prompt",
     "keywords:forbidden_words",
+    "length_constraints:number_paragraphs",
     "length_constraints:nth_paragraph_first_word",
+    "detectable_format:json_format",
     "detectable_format:number_bullet_lists",
+    "startend:end_checker"
 ]
 
 # Conservative secret-like patterns to redact from source prompts.
@@ -63,7 +67,8 @@ def _is_conflict(a: str, b: str, conflicts: dict[str, set[str]]) -> bool:
 
 def _sample_instruction_ids(rng: random.Random) -> list[str]:
   """Sample 1-2 instruction IDs from the target set, conflict-safe."""
-  n = rng.choice((1, 2))
+  # n = rng.choice((1, 2))
+  n = 1
   if n == 1:
     return [rng.choice(TARGET_INSTRUCTION_IDS)]
 
@@ -84,10 +89,15 @@ def _sample_instruction_ids(rng: random.Random) -> list[str]:
   return chosen
 
 
-def _build_instruction(inst_id: str) -> tuple[str, dict[str, Any]]:
+def _build_instruction(
+    inst_id: str, base_prompt: str
+) -> tuple[str, dict[str, Any]]:
   instruction_cls = instructions_registry.INSTRUCTION_DICT[inst_id]
   instruction = instruction_cls(inst_id)
-  text = instruction.build_description()
+  build_kwargs: dict[str, Any] = {}
+  if inst_id == "combination:repeat_prompt":
+    build_kwargs["prompt_to_repeat"] = base_prompt
+  text = instruction.build_description(**build_kwargs)
   kwargs = instruction.get_instruction_args() or {}
   return text, kwargs
 
@@ -120,11 +130,11 @@ def generate_records(
     descriptions = []
     kwargs_list = []
     for inst_id in instruction_ids:
-      description, kwargs = _build_instruction(inst_id)
+      description, kwargs = _build_instruction(inst_id, base_prompt)
       descriptions.append(description)
       kwargs_list.append(kwargs)
 
-    prompt = base_prompt + " " + " ".join(descriptions)
+    prompt = base_prompt + "\n\n" + " ".join(descriptions)
     records.append(
         {
             "key": source_idx,
