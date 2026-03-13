@@ -40,16 +40,62 @@ _OUTPUT_DIR = flags.DEFINE_string(
     required=True,
 )
 
+_EVALUATION_REGIME = flags.DEFINE_enum(
+    "evaluation_regime",
+    "all",
+    ["single", "multi", "all"],
+    (
+        "Subset of tasks to evaluate: 'single' keeps only tasks with exactly "
+        "one instruction, 'multi' keeps only tasks with 2+ instructions, and "
+        "'all' keeps the full dataset."
+    ),
+)
+
+
+def _matches_evaluation_regime(inp) -> bool:
+  """Returns whether an input example belongs to the selected regime."""
+  instruction_count = len(inp.instruction_id_list)
+  regime = _EVALUATION_REGIME.value
+  if regime == "single":
+    return instruction_count == 1
+  if regime == "multi":
+    return instruction_count > 1
+  return True
+
+
+def _get_output_suffix() -> str:
+  """Returns a filename suffix for non-default evaluation regimes."""
+  regime = _EVALUATION_REGIME.value
+  if regime == "all":
+    return ""
+  if regime == "single":
+    return "_single"
+  return "_multi"
+
 
 def main(argv):
   if len(argv) > 1:
     raise app.UsageError("Too many command-line arguments.")
 
   inputs = evaluation_lib.read_prompt_list(_INPUT_DATA.value)
+  total_inputs = len(inputs)
+  inputs = [inp for inp in inputs if _matches_evaluation_regime(inp)]
+  if not inputs:
+    raise app.UsageError(
+        "No input examples matched "
+        f"--evaluation_regime={_EVALUATION_REGIME.value!r}."
+    )
+  logging.info(
+      "Evaluating %d/%d examples with --evaluation_regime=%s",
+      len(inputs),
+      total_inputs,
+      _EVALUATION_REGIME.value,
+  )
   prompt_to_response = evaluation_lib.read_prompt_to_response_dict(
       _INPUT_RESPONSE_DATA.value)
 
   # get instruction following results
+  output_suffix = _get_output_suffix()
   for func, output_file_name in [
       (evaluation_lib.test_instruction_following_strict, "eval_results_strict"),
       (evaluation_lib.test_instruction_following_loose, "eval_results_loose"),
@@ -63,7 +109,7 @@ def main(argv):
     logging.info("Accuracy: %f", accuracy)
 
     output_file_name = os.path.join(
-        _OUTPUT_DIR.value, output_file_name + ".jsonl"
+        _OUTPUT_DIR.value, output_file_name + output_suffix + ".jsonl"
     )
     evaluation_lib.write_outputs(output_file_name, outputs)
     logging.info("Generated: %s", output_file_name)

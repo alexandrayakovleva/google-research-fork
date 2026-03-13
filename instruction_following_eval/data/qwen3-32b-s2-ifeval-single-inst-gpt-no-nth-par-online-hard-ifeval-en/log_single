@@ -1,0 +1,80 @@
+================================================================
+instruction_following_eval/data/qwen3-32b-s2-ifeval-single-inst-gpt-no-nth-par-online-hard-ifeval-en/eval_results_strict_single.jsonl Accuracy Scores:
+prompt-level: 0.9016393442622951
+instruction-level: 0.9016393442622951
+
+change_case 0.8387096774193549
+combination 0.9629629629629629
+detectable_content 0.9565217391304348
+detectable_format 0.9705882352941176
+keywords 0.72
+language 1.0
+length_constraints 0.9047619047619048
+punctuation 0.9375
+startend 0.9354838709677419
+
+change_case:capital_word_frequency 1.0
+change_case:english_capital 0.6363636363636364
+change_case:english_lowercase 0.9230769230769231
+combination:repeat_prompt 0.9444444444444444
+combination:two_responses 1.0
+detectable_content:number_placeholders 1.0
+detectable_content:postscript 0.9230769230769231
+detectable_format:constrained_response 1.0
+detectable_format:json_format 0.875
+detectable_format:multiple_sections 1.0
+detectable_format:number_bullet_lists 0.9230769230769231
+detectable_format:number_highlighted_sections 1.0
+detectable_format:title 1.0
+keywords:existence 1.0
+keywords:forbidden_words 0.6842105263157895
+keywords:frequency 0.8333333333333334
+keywords:letter_frequency 0.45454545454545453
+language:response_language 1.0
+length_constraints:nth_paragraph_first_word 0.625
+length_constraints:number_paragraphs 0.9
+length_constraints:number_sentences 1.0
+length_constraints:number_words 1.0
+punctuation:no_comma 0.9375
+startend:end_checker 0.8823529411764706
+startend:quotation 1.0
+================================================================
+instruction_following_eval/data/qwen3-32b-s2-ifeval-single-inst-gpt-no-nth-par-online-hard-ifeval-en/eval_results_loose_single.jsonl Accuracy Scores:
+prompt-level: 0.9278688524590164
+instruction-level: 0.9278688524590164
+
+change_case 0.8709677419354839
+combination 0.9629629629629629
+detectable_content 0.9565217391304348
+detectable_format 0.9852941176470589
+keywords 0.82
+language 1.0
+length_constraints 0.9047619047619048
+punctuation 0.9375
+startend 0.967741935483871
+
+change_case:capital_word_frequency 1.0
+change_case:english_capital 0.7272727272727273
+change_case:english_lowercase 0.9230769230769231
+combination:repeat_prompt 0.9444444444444444
+combination:two_responses 1.0
+detectable_content:number_placeholders 1.0
+detectable_content:postscript 0.9230769230769231
+detectable_format:constrained_response 1.0
+detectable_format:json_format 1.0
+detectable_format:multiple_sections 1.0
+detectable_format:number_bullet_lists 0.9230769230769231
+detectable_format:number_highlighted_sections 1.0
+detectable_format:title 1.0
+keywords:existence 1.0
+keywords:forbidden_words 0.8947368421052632
+keywords:frequency 0.9166666666666666
+keywords:letter_frequency 0.45454545454545453
+language:response_language 1.0
+length_constraints:nth_paragraph_first_word 0.625
+length_constraints:number_paragraphs 0.9
+length_constraints:number_sentences 1.0
+length_constraints:number_words 1.0
+punctuation:no_comma 0.9375
+startend:end_checker 0.9411764705882353
+startend:quotation 1.0

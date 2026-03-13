@@ -1,9 +1,9 @@
 ================================================================
-instruction_following_eval/data/qwen3-32b-no-thinking/eval_results_strict.jsonl Accuracy Scores:
-prompt-level: 0.8465804066543438
-instruction-level: 0.8920863309352518
+instruction_following_eval/data/qwen3-32b-no-thinking-en/eval_results_strict.jsonl Accuracy Scores:
+prompt-level: 0.8521256931608133
+instruction-level: 0.89568345323741
 
-change_case 0.8426966292134831
+change_case 0.8764044943820225
 combination 0.8923076923076924
 detectable_content 0.9622641509433962
 detectable_format 0.9554140127388535
@@ -14,7 +14,7 @@ punctuation 0.9545454545454546
 startend 0.9701492537313433
 
 change_case:capital_word_frequency 0.76
-change_case:english_capital 0.8
+change_case:english_capital 0.92
 change_case:english_lowercase 0.9230769230769231
 combination:repeat_prompt 0.8536585365853658
 combination:two_responses 0.9583333333333334
@@ -39,11 +39,11 @@ punctuation:no_comma 0.9545454545454546
 startend:end_checker 0.9230769230769231
 startend:quotation 1.0
 ================================================================
-instruction_following_eval/data/qwen3-32b-no-thinking/eval_results_loose.jsonl Accuracy Scores:
-prompt-level: 0.8853974121996303
-instruction-level: 0.9184652278177458
+instruction_following_eval/data/qwen3-32b-no-thinking-en/eval_results_loose.jsonl Accuracy Scores:
+prompt-level: 0.88909426987061
+instruction-level: 0.920863309352518
 
-change_case 0.8764044943820225
+change_case 0.898876404494382
 combination 0.9076923076923077
 detectable_content 0.9622641509433962
 detectable_format 0.9617834394904459
@@ -54,7 +54,7 @@ punctuation 0.9696969696969697
 startend 0.9850746268656716
 
 change_case:capital_word_frequency 0.8
-change_case:english_capital 0.84
+change_case:english_capital 0.92
 change_case:english_lowercase 0.9487179487179487
 combination:repeat_prompt 0.8536585365853658
 combination:two_responses 1.0

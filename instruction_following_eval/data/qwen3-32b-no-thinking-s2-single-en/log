@@ -1,0 +1,72 @@
+================================================================
+instruction_following_eval/data/qwen3-32b-no-thinking-s2-single-en/eval_results_strict.jsonl Accuracy Scores:
+prompt-level: 0.9263301500682128
+instruction-level: 0.9263301500682128
+
+change_case 0.8060200668896321
+combination 1.0
+detectable_content 1.0
+detectable_format 0.9966666666666667
+keywords 0.7566666666666667
+length_constraints 0.9375
+punctuation 1.0
+startend 0.98
+
+change_case:capital_word_frequency 0.5959595959595959
+change_case:english_capital 0.85
+change_case:english_lowercase 0.97
+combination:repeat_prompt 1.0
+combination:two_responses 1.0
+detectable_content:number_placeholders 1.0
+detectable_format:constrained_response 1.0
+detectable_format:json_format 0.98
+detectable_format:multiple_sections 1.0
+detectable_format:number_bullet_lists 1.0
+detectable_format:number_highlighted_sections 1.0
+detectable_format:title 1.0
+keywords:existence 1.0
+keywords:forbidden_words 0.73
+keywords:letter_frequency 0.54
+length_constraints:nth_paragraph_first_word 0.92
+length_constraints:number_paragraphs 0.97
+length_constraints:number_sentences 0.88
+length_constraints:number_words 0.98
+punctuation:no_comma 1.0
+startend:end_checker 0.98
+startend:quotation 0.98
+================================================================
+instruction_following_eval/data/qwen3-32b-no-thinking-s2-single-en/eval_results_loose.jsonl Accuracy Scores:
+prompt-level: 0.9358799454297408
+instruction-level: 0.9358799454297408
+
+change_case 0.8260869565217391
+combination 1.0
+detectable_content 1.0
+detectable_format 0.9966666666666667
+keywords 0.7833333333333333
+length_constraints 0.95
+punctuation 1.0
+startend 0.99
+
+change_case:capital_word_frequency 0.6262626262626263
+change_case:english_capital 0.88
+change_case:english_lowercase 0.97
+combination:repeat_prompt 1.0
+combination:two_responses 1.0
+detectable_content:number_placeholders 1.0
+detectable_format:constrained_response 1.0
+detectable_format:json_format 0.98
+detectable_format:multiple_sections 1.0
+detectable_format:number_bullet_lists 1.0
+detectable_format:number_highlighted_sections 1.0
+detectable_format:title 1.0
+keywords:existence 1.0
+keywords:forbidden_words 0.78
+keywords:letter_frequency 0.57
+length_constraints:nth_paragraph_first_word 0.92
+length_constraints:number_paragraphs 0.98
+length_constraints:number_sentences 0.9
+length_constraints:number_words 1.0
+punctuation:no_comma 1.0
+startend:end_checker 1.0
+startend:quotation 0.98

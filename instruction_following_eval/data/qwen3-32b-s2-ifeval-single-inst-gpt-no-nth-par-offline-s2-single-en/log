@@ -1,0 +1,72 @@
+================================================================
+instruction_following_eval/data/qwen3-32b-s2-ifeval-single-inst-gpt-no-nth-par-offline-s2-single-en/eval_results_strict.jsonl Accuracy Scores:
+prompt-level: 0.9690768531150523
+instruction-level: 0.9690768531150523
+
+change_case 0.9632107023411371
+combination 1.0
+detectable_content 1.0
+detectable_format 0.9983333333333333
+keywords 0.9
+length_constraints 0.9425
+punctuation 1.0
+startend 0.985
+
+change_case:capital_word_frequency 0.9393939393939394
+change_case:english_capital 0.97
+change_case:english_lowercase 0.98
+combination:repeat_prompt 1.0
+combination:two_responses 1.0
+detectable_content:number_placeholders 1.0
+detectable_format:constrained_response 1.0
+detectable_format:json_format 0.99
+detectable_format:multiple_sections 1.0
+detectable_format:number_bullet_lists 1.0
+detectable_format:number_highlighted_sections 1.0
+detectable_format:title 1.0
+keywords:existence 1.0
+keywords:forbidden_words 0.94
+keywords:letter_frequency 0.76
+length_constraints:nth_paragraph_first_word 0.93
+length_constraints:number_paragraphs 1.0
+length_constraints:number_sentences 0.87
+length_constraints:number_words 0.97
+punctuation:no_comma 1.0
+startend:end_checker 1.0
+startend:quotation 0.97
+================================================================
+instruction_following_eval/data/qwen3-32b-s2-ifeval-single-inst-gpt-no-nth-par-offline-s2-single-en/eval_results_loose.jsonl Accuracy Scores:
+prompt-level: 0.9758981355161437
+instruction-level: 0.9758981355161437
+
+change_case 0.9698996655518395
+combination 1.0
+detectable_content 1.0
+detectable_format 0.9983333333333333
+keywords 0.9233333333333333
+length_constraints 0.955
+punctuation 1.0
+startend 0.99
+
+change_case:capital_word_frequency 0.9595959595959596
+change_case:english_capital 0.97
+change_case:english_lowercase 0.98
+combination:repeat_prompt 1.0
+combination:two_responses 1.0
+detectable_content:number_placeholders 1.0
+detectable_format:constrained_response 1.0
+detectable_format:json_format 0.99
+detectable_format:multiple_sections 1.0
+detectable_format:number_bullet_lists 1.0
+detectable_format:number_highlighted_sections 1.0
+detectable_format:title 1.0
+keywords:existence 1.0
+keywords:forbidden_words 0.97
+keywords:letter_frequency 0.8
+length_constraints:nth_paragraph_first_word 0.93
+length_constraints:number_paragraphs 1.0
+length_constraints:number_sentences 0.89
+length_constraints:number_words 1.0
+punctuation:no_comma 1.0
+startend:end_checker 1.0
+startend:quotation 0.98

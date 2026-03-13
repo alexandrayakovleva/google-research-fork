@@ -1540,13 +1540,17 @@ class CapitalLettersEnglishChecker(Instruction):
     assert isinstance(value, str)
 
     try:
-      detected_lang = langdetect.detect(value)
-      feedback = f"The response is in all capital letters: {value.isupper()}, required True. Detected language: {detected_lang}, required en."
+      # detected_lang = langdetect.detect(value)
+      # feedback = f"The response is in all capital letters: {value.isupper()}, required True. Detected language: {detected_lang}, required en."
+      # if not value.isupper():
+      #   feedback += " Use only capital letters."
+      # if detected_lang != "en":
+      #   feedback += " Respond in English."
+      # return value.isupper() and detected_lang == "en", feedback
+      feedback = f"The response is in all capital letters: {value.isupper()}, required True."
       if not value.isupper():
         feedback += " Use only capital letters."
-      if detected_lang != "en":
-        feedback += " Respond in English."
-      return value.isupper() and detected_lang == "en", feedback
+      return value.isupper(), feedback
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
@@ -1578,13 +1582,17 @@ class LowercaseLettersEnglishChecker(Instruction):
     assert isinstance(value, str)
 
     try:
-      detected_lang = langdetect.detect(value)
-      feedback = f"The response is in all lowercase letters: {value.islower()}, required True. Detected language: {detected_lang}, required en."
+      # detected_lang = langdetect.detect(value)
+      # feedback = f"The response is in all lowercase letters: {value.islower()}, required True. Detected language: {detected_lang}, required en."
+      # if not value.islower():
+      #   feedback += " Use only lowercase letters."
+      # if detected_lang != "en":
+      #   feedback += " Respond in English."
+      # return value.islower() and detected_lang == "en", feedback
+      feedback = f"The response is in all lowercase letters: {value.islower()}, required True."
       if not value.islower():
         feedback += " Use only lowercase letters."
-      if detected_lang != "en":
-        feedback += " Respond in English."
-      return value.islower() and detected_lang == "en", feedback
+      return value.islower(), feedback
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
