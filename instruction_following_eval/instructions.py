@@ -634,6 +634,80 @@ class ParagraphChecker(Instruction):
     return passed, feedback
 
 
+class TextSplitter(Instruction):
+  """Checks that a given text is split into exactly n paragraphs."""
+
+  def build_description(self, *, text = None, num_paragraphs = None):
+    """Build the instruction description.
+
+    Args:
+      text: The source text that must be split into paragraphs without changing
+        its content other than inserting newline separators.
+      num_paragraphs: The exact number of paragraphs required in the response.
+
+    Returns:
+      A string representing the instruction description.
+    """
+    if text is None:
+      raise ValueError("text must be set.")
+    if num_paragraphs is None or num_paragraphs <= 0:
+      raise ValueError("num_paragraphs must be a positive integer.")
+
+    self._text = text
+    self._num_paragraphs = num_paragraphs
+    self._description_pattern = (
+        "Split the following text into {num_paragraphs} paragraphs using the "
+        "newline character as the paragraph separator. One or more line "
+        "breaks may separate adjacent paragraphs. Do not change the text "
+        "other than inserting line breaks.\n\n{text}")
+    return self._description_pattern.format(
+        num_paragraphs=self._num_paragraphs, text=self._text
+    )
+
+  def get_instruction_args(self):
+    """Returns the keyword args of `build_description`."""
+    return {"text": self._text, "num_paragraphs": self._num_paragraphs}
+
+  def get_instruction_args_keys(self):
+    """Returns the args keys of `build_description`."""
+    return ["text", "num_paragraphs"]
+
+  def check_following(self, value):
+    """Checks that the response preserves text and uses exactly n paragraphs."""
+    assert isinstance(value, str)
+
+    paragraphs = [paragraph.strip() for paragraph in re.split(r"\n+", value.strip())]
+    paragraphs = [paragraph for paragraph in paragraphs if paragraph]
+    num_paragraphs = len(paragraphs)
+
+    normalized_value = re.sub(r"\s+", " ", value).strip()
+    normalized_text = re.sub(r"\s+", " ", self._text).strip()
+    same_text = normalized_value == normalized_text
+    passed = num_paragraphs == self._num_paragraphs and same_text
+
+    feedback = (
+        f"Found {num_paragraphs} paragraph(s) separated by one or more line "
+        f"breaks, required "
+        f"exactly {self._num_paragraphs}. Text preserved after whitespace "
+        f"normalization: {same_text}."
+    )
+    if num_paragraphs != self._num_paragraphs:
+      if num_paragraphs > self._num_paragraphs:
+        feedback += (
+            f" Combine exactly {num_paragraphs - self._num_paragraphs} "
+            "paragraph(s)."
+        )
+      else:
+        feedback += (
+            f" Split into exactly {self._num_paragraphs - num_paragraphs} "
+            "more paragraph(s)."
+        )
+    if not same_text:
+      feedback += " Preserve the original text and only insert line breaks."
+
+    return passed, feedback
+
+
 class PostscriptChecker(Instruction):
   """Checks the postscript."""
 

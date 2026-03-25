@@ -352,6 +352,36 @@ class InstructionsTest(parameterized.TestCase):
       self.assertFalse(instruction.check_following(
           self.PARAGRAPH_TEST_MESSAGE_4))
 
+  TEXT_SPLITTER_SOURCE = "alpha beta gamma delta"
+  TEXT_SPLITTER_RESPONSE_1 = "alpha beta\ngamma delta"
+  TEXT_SPLITTER_RESPONSE_2 = "alpha\nbeta\ngamma delta"
+  TEXT_SPLITTER_RESPONSE_3 = "alpha beta\ngamma changed"
+  TEXT_SPLITTER_RESPONSE_4 = "alpha beta\n\ngamma delta"
+
+  def test_text_splitter(self):
+    """Test splitting a fixed text into newline-delimited paragraphs."""
+    instruction_id = 'detectable_format:text_splitter'
+    instruction = instructions.TextSplitter(instruction_id)
+    instruction.build_description(
+        text=self.TEXT_SPLITTER_SOURCE, num_paragraphs=2
+    )
+    with self.subTest('valid split preserves text'):
+      self.assertTrue(
+          instruction.check_following(self.TEXT_SPLITTER_RESPONSE_1)[0]
+      )
+    with self.subTest('wrong paragraph count fails'):
+      self.assertFalse(
+          instruction.check_following(self.TEXT_SPLITTER_RESPONSE_2)[0]
+      )
+    with self.subTest('changed text fails'):
+      self.assertFalse(
+          instruction.check_following(self.TEXT_SPLITTER_RESPONSE_3)[0]
+      )
+    with self.subTest('multiple line breaks are allowed'):
+      self.assertTrue(
+          instruction.check_following(self.TEXT_SPLITTER_RESPONSE_4)[0]
+      )
+
   POSTSCRIPT_TEST_MESSAGE_1 = """
   I will do my best to follow your instructions and always start my responses
   with "My response is:". I will try to be as consistent as possible, but

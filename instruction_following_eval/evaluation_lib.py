@@ -30,15 +30,27 @@ def _normalize_prompt(prompt: str) -> str:
   return re.sub(r"\s+", " ", prompt)
 
 
-def _get_response_for_prompt(inp_prompt, prompt_to_response):
-  """Fetches response for a prompt with normalized fallback."""
-  response = prompt_to_response.get(inp_prompt)
-  if response is not None:
-    return response
-  response = prompt_to_response.get(_normalize_prompt(inp_prompt))
-  if response is not None:
-    return response
+def _get_responses_for_prompt(inp_prompt, prompt_to_response):
+  """Fetches all responses for a prompt with normalized fallback."""
+  responses = prompt_to_response.get(inp_prompt)
+  if responses is not None:
+    return responses
+  responses = prompt_to_response.get(_normalize_prompt(inp_prompt))
+  if responses is not None:
+    return responses
   return None
+
+
+def _get_response_for_prompt(inp_prompt, prompt_to_response):
+  """Fetches one response for a prompt with normalized fallback."""
+  responses = _get_responses_for_prompt(inp_prompt, prompt_to_response)
+  if responses is None:
+    return None
+  if isinstance(responses, str):
+    return responses
+  if not responses:
+    return None
+  return responses[-1]
 
 
 def _is_missing_response(response) -> bool:
@@ -66,6 +78,7 @@ class OutputExample:
   instruction_id_list: list[str]
   prompt: str
   response: str
+  response_index: int
   follow_all_instructions: bool
   follow_instruction_list: list[bool]
   feedback_list: list[str]
@@ -103,23 +116,29 @@ def write_outputs(output_jsonl_filename, outputs):
       f.write("\n")
 
 
-def test_instruction_following_strict(
+def _build_missing_output(inp, response_index: int) -> OutputExample:
+  """Builds a standard missing-response output record."""
+  return OutputExample(
+      instruction_id_list=inp.instruction_id_list,
+      prompt=inp.prompt,
+      response="",
+      response_index=response_index,
+      follow_all_instructions=False,
+      follow_instruction_list=[False] * len(inp.instruction_id_list),
+      feedback_list=[
+          "Missing response for this prompt in --input_response_data."
+      ] * len(inp.instruction_id_list),
+  )
+
+
+def evaluate_instruction_following_strict(
     inp,
-    prompt_to_response,
+    response: Optional[str],
+    response_index: int = 0,
 ):
-  """Tests response to see if instrutions are followed."""
-  response = _get_response_for_prompt(inp.prompt, prompt_to_response)
+  """Tests a single response to see if instrutions are followed."""
   if _is_missing_response(response):
-    return OutputExample(
-        instruction_id_list=inp.instruction_id_list,
-        prompt=inp.prompt,
-        response="",
-        follow_all_instructions=False,
-        follow_instruction_list=[False] * len(inp.instruction_id_list),
-        feedback_list=[
-            "Missing response for this prompt in --input_response_data."
-        ] * len(inp.instruction_id_list),
-    )
+    return _build_missing_output(inp, response_index)
   instruction_list = inp.instruction_id_list
   is_following_list = []
   feedback_list = []
@@ -144,29 +163,30 @@ def test_instruction_following_strict(
       instruction_id_list=inp.instruction_id_list,
       prompt=inp.prompt,
       response=response,
+      response_index=response_index,
       follow_all_instructions=all(is_following_list),
       follow_instruction_list=is_following_list,
       feedback_list=feedback_list,
   )
 
 
-def test_instruction_following_loose(
+def test_instruction_following_strict(
     inp,
     prompt_to_response,
 ):
-  """Tests response for an upper bound for following instructions."""
+  """Backward-compatible wrapper for evaluating one prompt response."""
   response = _get_response_for_prompt(inp.prompt, prompt_to_response)
+  return evaluate_instruction_following_strict(inp, response)
+
+
+def evaluate_instruction_following_loose(
+    inp,
+    response: Optional[str],
+    response_index: int = 0,
+):
+  """Tests a single response for an upper bound for following instructions."""
   if _is_missing_response(response):
-    return OutputExample(
-        instruction_id_list=inp.instruction_id_list,
-        prompt=inp.prompt,
-        response="",
-        follow_all_instructions=False,
-        follow_instruction_list=[False] * len(inp.instruction_id_list),
-        feedback_list=[
-            "Missing response for this prompt in --input_response_data."
-        ] * len(inp.instruction_id_list),
-    )
+    return _build_missing_output(inp, response_index)
   r = response.split("\n")
   response_remove_first = "\n".join(r[1:]).strip()
   response_remove_last = "\n".join(r[:-1]).strip()
@@ -219,24 +239,35 @@ def test_instruction_following_loose(
       instruction_id_list=inp.instruction_id_list,
       prompt=inp.prompt,
       response=response,
+      response_index=response_index,
       follow_all_instructions=all(is_following_list),
       follow_instruction_list=is_following_list,
       feedback_list=feedback_list,
   )
 
 
+def test_instruction_following_loose(
+    inp,
+    prompt_to_response,
+):
+  """Backward-compatible wrapper for evaluating one prompt response."""
+  response = _get_response_for_prompt(inp.prompt, prompt_to_response)
+  return evaluate_instruction_following_loose(inp, response)
+
+
 def read_prompt_to_response_dict(input_jsonl_filename):
-  """Creates dictionary matching prompt and response."""
+  """Creates dictionary matching prompt and responses."""
   return_dict = {}
   with open(input_jsonl_filename, "r") as f:
     for l in f:
       example = json.loads(l)
       prompt = example["prompt"]
       response = example["response"]
-      return_dict[prompt] = response
+      responses = return_dict.setdefault(prompt, [])
+      responses.append(response)
       normalized_prompt = _normalize_prompt(prompt)
       if normalized_prompt not in return_dict:
-        return_dict[normalized_prompt] = response
+        return_dict[normalized_prompt] = responses
   return return_dict
 
 
@@ -280,7 +311,7 @@ def print_report(outputs):
       if followed_or_not:
         tier1_correct[instruction_id] += 1
 
-  print(f"prompt-level: {prompt_correct / prompt_total}")
+  print(f"prompt-level (per response): {prompt_correct / prompt_total}")
   print(f"instruction-level: {instruction_correct / instruction_total}")
   print()
   for instruction_id in sorted(tier0_total.keys()):

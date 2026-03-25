@@ -91,22 +91,37 @@ def main(argv):
       total_inputs,
       _EVALUATION_REGIME.value,
   )
-  prompt_to_response = evaluation_lib.read_prompt_to_response_dict(
+  prompt_to_responses = evaluation_lib.read_prompt_to_response_dict(
       _INPUT_RESPONSE_DATA.value)
 
   # get instruction following results
   output_suffix = _get_output_suffix()
   for func, output_file_name in [
-      (evaluation_lib.test_instruction_following_strict, "eval_results_strict"),
-      (evaluation_lib.test_instruction_following_loose, "eval_results_loose"),
+      (
+          evaluation_lib.evaluate_instruction_following_strict,
+          "eval_results_strict",
+      ),
+      (
+          evaluation_lib.evaluate_instruction_following_loose,
+          "eval_results_loose",
+      ),
   ]:
     logging.info("Generating %s...", output_file_name)
     outputs = []
     for inp in inputs:
-      outputs.append(func(inp, prompt_to_response))
+      responses = evaluation_lib._get_responses_for_prompt(
+          inp.prompt, prompt_to_responses
+      )
+      if responses is None:
+        outputs.append(func(inp, None))
+        continue
+      for response_index, response in enumerate(responses):
+        outputs.append(func(inp, response, response_index=response_index))
     follow_all_instructions = [o.follow_all_instructions for o in outputs]
     accuracy = sum(follow_all_instructions) / len(outputs)
-    logging.info("Accuracy: %f", accuracy)
+    logging.info(
+        "Accuracy across %d prompt-response pairs: %f", len(outputs), accuracy
+    )
 
     output_file_name = os.path.join(
         _OUTPUT_DIR.value, output_file_name + output_suffix + ".jsonl"
