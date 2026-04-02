@@ -1301,6 +1301,16 @@ I love it too much. I'll just have to make sure to eat it in moderation.
           instructions.HighlightSectionChecker),
       'detectable_format:multiple_sections': instructions.SectionChecker,
       'detectable_format:json_format': instructions.JsonFormat,
+      'reasonif:language:reasoning_language': (
+          instructions.ReasonIFResponseLanguageChecker),
+      'reasonif:length_constraint_checkers:number_words': (
+          instructions.ReasonIFNumberOfWords),
+      'reasonif:change_case:english_capital': (
+          instructions.ReasonIFCapitalLettersEnglishChecker),
+      'reasonif:startend:end_checker': instructions.ReasonIFEndChecker,
+      'reasonif:detectable_format:json_format': (
+          instructions.ReasonIFJsonFormat),
+      'reasonif:punctuation:no_comma': instructions.ReasonIFCommaChecker,
   }
 
   def test_get_instruction_args(self):

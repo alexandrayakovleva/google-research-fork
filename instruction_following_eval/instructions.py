@@ -179,6 +179,43 @@ class ResponseLanguageChecker(Instruction):
       return True, "Language detection failed; counted as passed."
 
 
+class ReasonIFResponseLanguageChecker(Instruction):
+  """ReasonIF-style language constraint for the reasoning text."""
+
+  def build_description(self, *, language = None):
+    """Build the instruction description."""
+    self._language = language
+    if self._language is None:
+      self._language = random.choice(list(_LANGUAGES.keys()))
+    self._description_pattern = (
+        "When reasoning, respond only in {language} language, no other "
+        "language is allowed.")
+    return self._description_pattern.format(
+        language=_LANGUAGES[self._language].capitalize())
+
+  def get_instruction_args(self):
+    return {"language": self._language}
+
+  def get_instruction_args_keys(self):
+    return ["language"]
+
+  def check_following(self, value):
+    """Check if the language of the response follows the instruction."""
+    assert isinstance(value, str)
+
+    try:
+      detected_lang = langdetect.detect(value)
+      return (
+          detected_lang == self._language,
+          f"Detected language '{detected_lang}', required '{self._language}'.",
+      )
+    except langdetect.LangDetectException as e:
+      logging.error(
+          "Unable to detect language for text %s due to %s", value, e
+      )  # refex: disable=pytotw.037
+      return True, "Language detection failed; counted as passed."
+
+
 class NumberOfSentences(Instruction):
   """Check the number of sentences."""
 
@@ -1012,6 +1049,33 @@ class NumberOfWords(Instruction):
       return num_words >= self._num_words, feedback  # pytype: disable=bad-return-type
 
 
+class ReasonIFNumberOfWords(Instruction):
+  """ReasonIF-style word-count constraint for reasoning."""
+
+  def build_description(self, *, num_words = 0):
+    """Build the instruction description."""
+    self._num_words = num_words
+    self._description_pattern = (
+        "When reasoning, respond with less than {num_words} words.")
+    return self._description_pattern.format(num_words=self._num_words)
+
+  def get_instruction_args(self):
+    return {"num_words": self._num_words}
+
+  def get_instruction_args_keys(self):
+    return ["num_words"]
+
+  def check_following(self, value):
+    """Checks if the response contains fewer than the allowed words."""
+    num_words = instructions_util.count_words(value)
+    feedback = f"Found {num_words} words, required less than {self._num_words}."
+    if num_words >= self._num_words:
+      feedback += (
+          f" Shorten the response by at least "
+          f"{num_words - self._num_words + 1} word(s).")
+    return num_words < self._num_words, feedback
+
+
 class JsonFormat(Instruction):
   """Check the Json format."""
 
@@ -1045,6 +1109,38 @@ class JsonFormat(Instruction):
     except ValueError as e:
       return False, f"Invalid JSON format. JSON load error: {e}."
     return True, f"Valid JSON format: True."
+
+
+class ReasonIFJsonFormat(Instruction):
+  """ReasonIF-style JSON formatting constraint."""
+
+  def build_description(self):
+    self._description_pattern = (
+        "When reasoning, your response should be wrapped in JSON format. "
+        "You can use markdown ticks such as ```.")
+    return self._description_pattern
+
+  def get_instruction_args(self):
+    return None
+
+  def get_instruction_args_keys(self):
+    return []
+
+  def check_following(self, value):
+    value = (
+        value.strip()
+        .removeprefix("```json")
+        .removeprefix("```Json")
+        .removeprefix("```JSON")
+        .removeprefix("```")
+        .removesuffix("```")
+        .strip()
+    )
+    try:
+      json.loads(value)
+    except ValueError as e:
+      return False, f"Invalid JSON format. JSON load error: {e}."
+    return True, "Valid JSON format: True."
 
 
 class ParagraphFirstWordCheck(Instruction):
@@ -1480,6 +1576,39 @@ class EndChecker(Instruction):
     )
 
 
+class ReasonIFEndChecker(Instruction):
+  """ReasonIF-style exact ending constraint."""
+
+  def build_description(self, *, end_phrase = None):
+    self._end_phrase = (
+        end_phrase.strip() if isinstance(end_phrase, str) else end_phrase
+    )
+    if self._end_phrase is None:
+      self._end_phrase = random.choice(_ENDING_OPTIONS)
+    self._description_pattern = (
+        'When reasoning, finish your response with this exact phrase '
+        '"{ender}". No other reasoning words should follow this phrase.')
+    return self._description_pattern.format(ender=self._end_phrase)
+
+  def get_instruction_args(self):
+    return {"end_phrase": self._end_phrase}
+
+  def get_instruction_args_keys(self):
+    return ["end_phrase"]
+
+  def check_following(self, value):
+    stripped_value = value.strip().strip('"')
+    expected_phrase = self._end_phrase.strip()
+    if stripped_value.lower().endswith(expected_phrase.lower()):
+      return True, f"Response ends with '{expected_phrase}': True."
+    actual_ending = stripped_value[-len(expected_phrase):] if expected_phrase else ""
+    return False, (
+        f"Response ends with '{actual_ending}', expected ending: "
+        f"'{expected_phrase}'. End the corrected response with "
+        f"'{expected_phrase}'."
+    )
+
+
 class TitleChecker(Instruction):
   """Checks the response for a title."""
 
@@ -1633,6 +1762,38 @@ class CapitalLettersEnglishChecker(Instruction):
       return True, "Unable to detect language, returned True."
 
 
+class ReasonIFCapitalLettersEnglishChecker(Instruction):
+  """ReasonIF-style all-caps constraint."""
+
+  def build_description(self):
+    self._description_pattern = (
+        "When reasoning, your response should be in all capital letters.")
+    return self._description_pattern
+
+  def get_instruction_args(self):
+    return None
+
+  def get_instruction_args_keys(self):
+    return []
+
+  def check_following(self, value):
+    """Checks that the response is in all capital letters."""
+    assert isinstance(value, str)
+
+    try:
+      feedback = (
+          f"The response is in all capital letters: {value.isupper()}, "
+          "required True.")
+      if not value.isupper():
+        feedback += " Use only capital letters."
+      return value.isupper(), feedback
+    except langdetect.LangDetectException as e:
+      logging.error(
+          "Unable to detect language for text %s due to %s", value, e
+      )  # refex: disable=pytotw.037
+      return True, "Language detection failed; counted as passed."
+
+
 class LowercaseLettersEnglishChecker(Instruction):
   """Checks that the response is in english and is in all lowercase letters."""
 
@@ -1694,6 +1855,26 @@ class CommaChecker(Instruction):
 
   def check_following(self, value):
     """Checks that the response does not contain commas."""
+    if not re.search(r"\,", value):
+      return True, "Response does not contain commas as required."
+    return False, "Comma detected in the response. The response must not contain commas."
+
+
+class ReasonIFCommaChecker(Instruction):
+  """ReasonIF-style no-comma constraint."""
+
+  def build_description(self):
+    self._description_pattern = (
+        "When reasoning, refrain from the use of any commas.")
+    return self._description_pattern
+
+  def get_instruction_args(self):
+    return None
+
+  def get_instruction_args_keys(self):
+    return []
+
+  def check_following(self, value):
     if not re.search(r"\,", value):
       return True, "Response does not contain commas as required."
     return False, "Comma detected in the response. The response must not contain commas."

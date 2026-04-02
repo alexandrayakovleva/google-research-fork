@@ -1,78 +1,78 @@
 ================================================================
 instruction_following_eval/data/qwen3-32b-s2-ifeval-single-inst-gpt-no-nth-par-offline-ifeval-en/eval_results_strict_multi.jsonl Accuracy Scores:
-prompt-level: 0.7627118644067796
-instruction-level: 0.8865784499054821
+prompt-level (per response): 0.7372881355932204
+instruction-level: 0.8733459357277883
 
-change_case 0.8793103448275862
-combination 0.8157894736842105
-detectable_content 0.9333333333333333
-detectable_format 0.9325842696629213
-keywords 0.8938053097345132
-language 0.9285714285714286
-length_constraints 0.7920792079207921
-punctuation 0.96
-startend 0.9444444444444444
-
-change_case:capital_word_frequency 0.7222222222222222
-change_case:english_capital 1.0
-change_case:english_lowercase 0.9230769230769231
-combination:repeat_prompt 0.7391304347826086
-combination:two_responses 0.9333333333333333
-detectable_content:number_placeholders 0.8823529411764706
-detectable_content:postscript 1.0
-detectable_format:json_format 1.0
-detectable_format:multiple_sections 0.8888888888888888
-detectable_format:number_bullet_lists 0.7777777777777778
-detectable_format:number_highlighted_sections 0.9655172413793104
-detectable_format:title 1.0
-keywords:existence 0.967741935483871
-keywords:forbidden_words 0.8
-keywords:frequency 0.9333333333333333
-keywords:letter_frequency 0.8636363636363636
-language:response_language 0.9285714285714286
-length_constraints:nth_paragraph_first_word 0.75
-length_constraints:number_paragraphs 0.8235294117647058
-length_constraints:number_sentences 0.7948717948717948
-length_constraints:number_words 0.7804878048780488
-punctuation:no_comma 0.96
-startend:end_checker 1.0
-startend:quotation 0.9259259259259259
-================================================================
-instruction_following_eval/data/qwen3-32b-s2-ifeval-single-inst-gpt-no-nth-par-offline-ifeval-en/eval_results_loose_multi.jsonl Accuracy Scores:
-prompt-level: 0.8220338983050848
-instruction-level: 0.9149338374291115
-
-change_case 0.9137931034482759
-combination 0.8421052631578947
-detectable_content 0.9333333333333333
-detectable_format 0.9438202247191011
-keywords 0.9380530973451328
+change_case 0.8689655172413793
+combination 0.7842105263157895
+detectable_content 0.9866666666666667
+detectable_format 0.946067415730337
+keywords 0.856637168141593
 language 1.0
-length_constraints 0.8415841584158416
-punctuation 0.96
-startend 0.9444444444444444
+length_constraints 0.7227722772277227
+punctuation 0.988
+startend 0.9666666666666667
 
-change_case:capital_word_frequency 0.7777777777777778
-change_case:english_capital 1.0
-change_case:english_lowercase 0.9615384615384616
-combination:repeat_prompt 0.7391304347826086
-combination:two_responses 1.0
-detectable_content:number_placeholders 0.8823529411764706
-detectable_content:postscript 1.0
-detectable_format:json_format 1.0
+change_case:capital_word_frequency 0.6666666666666666
+change_case:english_capital 0.9142857142857143
+change_case:english_lowercase 0.9846153846153847
+combination:repeat_prompt 0.7043478260869566
+combination:two_responses 0.9066666666666666
+detectable_content:number_placeholders 1.0
+detectable_content:postscript 0.9692307692307692
+detectable_format:json_format 0.9777777777777777
 detectable_format:multiple_sections 0.8888888888888888
 detectable_format:number_bullet_lists 0.8333333333333334
-detectable_format:number_highlighted_sections 0.9655172413793104
-detectable_format:title 1.0
-keywords:existence 0.967741935483871
-keywords:forbidden_words 0.9333333333333333
-keywords:frequency 0.9666666666666667
-keywords:letter_frequency 0.8636363636363636
+detectable_format:number_highlighted_sections 0.993103448275862
+detectable_format:title 0.9833333333333333
+keywords:existence 0.9612903225806452
+keywords:forbidden_words 0.7733333333333333
+keywords:frequency 0.86
+keywords:letter_frequency 0.8181818181818182
+language:response_language 1.0
+length_constraints:nth_paragraph_first_word 0.75
+length_constraints:number_paragraphs 0.7647058823529411
+length_constraints:number_sentences 0.7230769230769231
+length_constraints:number_words 0.7024390243902439
+punctuation:no_comma 0.988
+startend:end_checker 0.9777777777777777
+startend:quotation 0.9629629629629629
+================================================================
+instruction_following_eval/data/qwen3-32b-s2-ifeval-single-inst-gpt-no-nth-par-offline-ifeval-en/eval_results_loose_multi.jsonl Accuracy Scores:
+prompt-level (per response): 0.7932203389830509
+instruction-level: 0.9024574669187145
+
+change_case 0.896551724137931
+combination 0.8105263157894737
+detectable_content 0.9866666666666667
+detectable_format 0.9550561797752809
+keywords 0.8973451327433628
+language 1.0
+length_constraints 0.7940594059405941
+punctuation 0.988
+startend 0.9722222222222222
+
+change_case:capital_word_frequency 0.7333333333333333
+change_case:english_capital 0.9428571428571428
+change_case:english_lowercase 0.9846153846153847
+combination:repeat_prompt 0.7043478260869566
+combination:two_responses 0.9733333333333334
+detectable_content:number_placeholders 1.0
+detectable_content:postscript 0.9692307692307692
+detectable_format:json_format 0.9777777777777777
+detectable_format:multiple_sections 0.8888888888888888
+detectable_format:number_bullet_lists 0.8777777777777778
+detectable_format:number_highlighted_sections 0.993103448275862
+detectable_format:title 0.9833333333333333
+keywords:existence 0.9612903225806452
+keywords:forbidden_words 0.8666666666666667
+keywords:frequency 0.9066666666666666
+keywords:letter_frequency 0.8363636363636363
 language:response_language 1.0
 length_constraints:nth_paragraph_first_word 1.0
-length_constraints:number_paragraphs 0.8823529411764706
-length_constraints:number_sentences 0.8205128205128205
-length_constraints:number_words 0.8292682926829268
-punctuation:no_comma 0.96
+length_constraints:number_paragraphs 0.8470588235294118
+length_constraints:number_sentences 0.7948717948717948
+length_constraints:number_words 0.751219512195122
+punctuation:no_comma 0.988
 startend:end_checker 1.0
-startend:quotation 0.9259259259259259
+startend:quotation 0.9629629629629629

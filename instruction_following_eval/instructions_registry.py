@@ -52,6 +52,8 @@ _PARAGRAPH = "paragraphs:"
 
 _LETTER = "letters:"
 
+_REASONIF = "reasonif:"
+
 
 INSTRUCTION_DICT = {
     _KEYWORD + "existence": instructions.KeywordChecker,
@@ -122,6 +124,16 @@ INSTRUCTION_DICT = {
     _KEYWORD + "palindrome": instructions.PalindromeBasicChecker,
     _KEYWORD + "keyword_specific_position": instructions.KeywordSpecificPositionChecker,
     _KEYWORD + "start_end": instructions.StartEndChecker,
+    _REASONIF + "language:reasoning_language": (
+        instructions.ReasonIFResponseLanguageChecker),
+    _REASONIF + "length_constraint_checkers:number_words": (
+        instructions.ReasonIFNumberOfWords),
+    _REASONIF + "change_case:english_capital": (
+        instructions.ReasonIFCapitalLettersEnglishChecker),
+    _REASONIF + "startend:end_checker": instructions.ReasonIFEndChecker,
+    _REASONIF + "detectable_format:json_format": (
+        instructions.ReasonIFJsonFormat),
+    _REASONIF + "punctuation:no_comma": instructions.ReasonIFCommaChecker,
 }
 
 INSTRUCTION_CONFLICTS = {
@@ -236,6 +248,24 @@ INSTRUCTION_CONFLICTS = {
     _KEYWORD + "palindrome": {_KEYWORD + "palindrome"},
     _KEYWORD + "keyword_specific_position": {_KEYWORD + "keyword_specific_position"},
     _KEYWORD + "start_end": {_KEYWORD + "start_end"},
+    _REASONIF + "language:reasoning_language": {
+        _REASONIF + "language:reasoning_language",
+    },
+    _REASONIF + "length_constraint_checkers:number_words": {
+        _REASONIF + "length_constraint_checkers:number_words",
+    },
+    _REASONIF + "change_case:english_capital": {
+        _REASONIF + "change_case:english_capital",
+    },
+    _REASONIF + "startend:end_checker": {
+        _REASONIF + "startend:end_checker",
+    },
+    _REASONIF + "detectable_format:json_format": {
+        _REASONIF + "detectable_format:json_format",
+    },
+    _REASONIF + "punctuation:no_comma": {
+        _REASONIF + "punctuation:no_comma",
+    },
 }
 
 
