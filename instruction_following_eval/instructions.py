@@ -198,7 +198,7 @@ class ReasonIFResponseLanguageChecker(Instruction):
     if self._language is None:
       self._language = random.choice(list(_LANGUAGES.keys()))
     self._description_pattern = (
-        "When reasoning, respond only in {language} language, no other "
+        "When reasoning, use only {language} language, no other "
         "language is allowed.")
     return self._description_pattern.format(
         language=_LANGUAGES[self._language].capitalize())
@@ -1066,7 +1066,7 @@ class ReasonIFNumberOfWords(Instruction):
     """Build the instruction description."""
     self._num_words = num_words
     self._description_pattern = (
-        "When reasoning, respond with less than {num_words} words.")
+        "When reasoning, use less than {num_words} words.")
     return self._description_pattern.format(num_words=self._num_words)
 
   def get_instruction_args(self):
@@ -1126,7 +1126,7 @@ class ReasonIFJsonFormat(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "When reasoning, your response should be wrapped in JSON format. "
+        "When reasoning, follow JSON format. "
         "You can use markdown ticks such as ```.")
     return self._description_pattern
 
@@ -1596,8 +1596,8 @@ class ReasonIFEndChecker(Instruction):
     if self._end_phrase is None:
       self._end_phrase = random.choice(_REASONIF_ENDING_OPTIONS)
     self._description_pattern = (
-        'When reasoning, finish your response with this exact phrase '
-        '"{ender}". No other reasoning words should follow this phrase.')
+        'When reasoning, put this exact phrase '
+        '"{ender}" in the end of reasoning. No other reasoning words should follow this phrase.')
     return self._description_pattern.format(ender=self._end_phrase)
 
   def get_instruction_args(self):
@@ -1777,7 +1777,7 @@ class ReasonIFCapitalLettersEnglishChecker(Instruction):
 
   def build_description(self):
     self._description_pattern = (
-        "When reasoning, your response should be in all capital letters.")
+        "When reasoning, use only capital letters.")
     return self._description_pattern
 
   def get_instruction_args(self):

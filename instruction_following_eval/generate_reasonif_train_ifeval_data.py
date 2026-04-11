@@ -34,12 +34,17 @@ DEFAULT_REASONIF_WORD_LIMIT = {
     "gsm8k": 52,
 }
 
+# PROMPT_TEMPLATE = (
+#     "Think step-by-step, and place only your final answer inside the tags "
+#     "`<answer>` and `</answer>`. Format your reasoning according to the "
+#     "following rule: **{constraint_text}**\n\n"
+#     "Here is the question:\n\n"
+#     "{question_statement}"
+# )
 PROMPT_TEMPLATE = (
-    "Think step-by-step, and place only your final answer inside the tags "
-    "`<answer>` and `</answer>`. Format your reasoning according to the "
-    "following rule: **{constraint_text}**\n\n"
-    "Here is the question:\n\n"
-    "{question_statement}"
+    "{question_statement}\n\n"
+    "<thinking guidelines>\n{constraint_text}\n</thinking guidelines>\n\n"
+    "Place the final answer inside the tags `<answer>` and `</answer>`."
 )
 
 
@@ -78,12 +83,29 @@ def _extract_gsm8k_question(example: dict[str, Any], rng: random.Random) -> str:
   return question.strip()
 
 
+def _extract_gsm8k_answer(example: dict[str, Any]) -> str:
+  answer = _get_first_present(example, ["answer", "final_answer", "target"])
+  if not isinstance(answer, str) or not answer.strip():
+    raise ValueError("Missing GSM8K answer.")
+  return answer.strip()
+
+
 def _extract_aimo_question(example: dict[str, Any], rng: random.Random) -> str:
   del rng
   question = _get_first_present(example, ["problem", "question", "Question"])
   if not isinstance(question, str) or not question.strip():
     raise ValueError("Missing AIMO question text.")
   return question.strip()
+
+
+def _extract_aimo_answer(example: dict[str, Any]) -> str:
+  answer = _get_first_present(example, ["answer", "Answer", "target"])
+  if answer is None:
+    raise ValueError("Missing AIMO answer.")
+  answer_text = str(answer).strip()
+  if not answer_text:
+    raise ValueError("Missing AIMO answer.")
+  return answer_text
 
 
 def _extract_arc_question(example: dict[str, Any], rng: random.Random) -> str:
@@ -113,6 +135,37 @@ def _extract_arc_question(example: dict[str, Any], rng: random.Random) -> str:
   return _build_mcq_question(stem.strip(), choices)
 
 
+def _extract_arc_answer(example: dict[str, Any]) -> str:
+  answer_key = _get_first_present(example, ["answerKey", "answer_key", "label"])
+  if not isinstance(answer_key, str) or not answer_key.strip():
+    raise ValueError("Missing ARC answer key.")
+  normalized_key = answer_key.strip()
+
+  choices_obj = example.get("choices")
+  if isinstance(choices_obj, dict):
+    labels = choices_obj.get("label")
+    texts = choices_obj.get("text")
+    if isinstance(labels, list) and isinstance(texts, list):
+      for label, text in zip(labels, texts):
+        if str(label).strip() == normalized_key and str(text).strip():
+          return str(text).strip()
+  elif isinstance(choices_obj, list):
+    for choice in choices_obj:
+      if not isinstance(choice, dict):
+        continue
+      label = _get_first_present(choice, ["label", "key"])
+      text = _get_first_present(choice, ["text", "label_text", "content"])
+      if (
+          isinstance(label, str)
+          and label.strip() == normalized_key
+          and isinstance(text, str)
+          and text.strip()
+      ):
+        return text.strip()
+
+  return normalized_key
+
+
 def _extract_gpqa_question(example: dict[str, Any], rng: random.Random) -> str:
   stem = _get_first_present(example, ["Question", "question", "prompt"])
   if not isinstance(stem, str) or not stem.strip():
@@ -137,6 +190,19 @@ def _extract_gpqa_question(example: dict[str, Any], rng: random.Random) -> str:
   if "A." in question_text and "B." in question_text:
     return question_text
   raise ValueError("Unsupported GPQA schema.")
+
+
+def _extract_gpqa_answer(example: dict[str, Any]) -> str:
+  answer = _get_first_present(
+      example,
+      ["Correct Answer", "correct_answer", "answer", "Answer"],
+  )
+  if answer is None:
+    raise ValueError("Missing GPQA answer.")
+  answer_text = str(answer).strip()
+  if not answer_text:
+    raise ValueError("Missing GPQA answer.")
+  return answer_text
 
 
 def _mcq_stem(question: str) -> str:
@@ -187,6 +253,7 @@ SOURCE_SPECS: dict[str, dict[str, Any]] = {
                 "dataset_id": "openai/gsm8k",
                 "candidates": [("main", "train"), (None, "train")],
                 "extract_question": _extract_gsm8k_question,
+                "extract_answer": _extract_gsm8k_answer,
                 "question_key": _default_key_fn,
                 "include_example": _allow_all,
                 "name": "gsm8k_main",
@@ -199,6 +266,7 @@ SOURCE_SPECS: dict[str, dict[str, Any]] = {
                 "dataset_id": "rawsh/2024_AMC12",
                 "candidates": [(None, "train"), ("default", "train")],
                 "extract_question": _extract_aimo_question,
+                "extract_answer": _extract_aimo_answer,
                 "question_key": _default_key_fn,
                 "include_example": _allow_all,
                 "name": "amc_2024",
@@ -211,6 +279,7 @@ SOURCE_SPECS: dict[str, dict[str, Any]] = {
                 "dataset_id": "lchen001/AIME1983_2024",
                 "candidates": [(None, "train"), ("default", "train")],
                 "extract_question": _extract_aimo_question,
+                "extract_answer": _extract_aimo_answer,
                 "question_key": _default_key_fn,
                 "include_example": _year_at_most(2021),
                 "name": "aime_1983_2021",
@@ -219,6 +288,7 @@ SOURCE_SPECS: dict[str, dict[str, Any]] = {
                 "dataset_id": "rawsh/aime_2025",
                 "candidates": [(None, "train"), ("default", "train")],
                 "extract_question": _extract_aimo_question,
+                "extract_answer": _extract_aimo_answer,
                 "question_key": _default_key_fn,
                 "include_example": _allow_all,
                 "name": "aime_2025",
@@ -227,6 +297,7 @@ SOURCE_SPECS: dict[str, dict[str, Any]] = {
                 "dataset_id": "math-ai/aime26",
                 "candidates": [(None, "test"), ("default", "test")],
                 "extract_question": _extract_aimo_question,
+                "extract_answer": _extract_aimo_answer,
                 "question_key": _default_key_fn,
                 "include_example": _allow_all,
                 "name": "aime_2026",
@@ -245,6 +316,7 @@ SOURCE_SPECS: dict[str, dict[str, Any]] = {
                     (None, "train"),
                 ],
                 "extract_question": _extract_gpqa_question,
+                "extract_answer": _extract_gpqa_answer,
                 "question_key": _mcq_key_fn,
                 "include_example": _allow_all,
                 "name": "gpqa_primary",
@@ -253,6 +325,7 @@ SOURCE_SPECS: dict[str, dict[str, Any]] = {
                 "dataset_id": "fingertap/GPQA-Diamond",
                 "candidates": [(None, "test"), ("default", "test")],
                 "extract_question": _extract_aimo_question,
+                "extract_answer": _extract_gpqa_answer,
                 "question_key": _mcq_key_fn,
                 "include_example": _allow_all,
                 "name": "gpqa_diamond_fallback",
@@ -265,6 +338,7 @@ SOURCE_SPECS: dict[str, dict[str, Any]] = {
                 "dataset_id": "allenai/ai2_arc",
                 "candidates": [("ARC-Challenge", "train"), ("ARC-Challenge", "validation")],
                 "extract_question": _extract_arc_question,
+                "extract_answer": _extract_arc_answer,
                 "question_key": _mcq_key_fn,
                 "include_example": _allow_all,
                 "name": "arc_challenge",
@@ -345,6 +419,7 @@ def _sample_records_for_pool(
     rng: random.Random,
     excluded_keys: set[str],
     extract_question: Callable[[dict[str, Any], random.Random], str],
+    extract_answer: Callable[[dict[str, Any]], str],
     key_fn: Callable[[str], str],
     include_example: Callable[[dict[str, Any]], bool],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -367,6 +442,7 @@ def _sample_records_for_pool(
 
     try:
       question = extract_question(example, rng)
+      answer = extract_answer(example)
     except ValueError:
       stats["skipped_invalid"] += 1
       continue
@@ -379,7 +455,7 @@ def _sample_records_for_pool(
     stats["accepted"] += 1
     excluded_keys.add(question_key)
 
-    records.append({"question": question})
+    records.append({"question": question, "answer": answer})
     if len(records) >= remaining_limit:
       break
 
@@ -438,6 +514,7 @@ def generate_records(
           rng=rng,
           excluded_keys=test_question_keys[source],
           extract_question=pool["extract_question"],
+          extract_answer=pool["extract_answer"],
           key_fn=pool["question_key"],
           include_example=pool["include_example"],
       )
@@ -453,6 +530,7 @@ def generate_records(
             {
                 "key": next_key,
                 "prompt": prompt,
+                "answer": record["answer"],
                 "instruction_id_list": [inst_id],
                 "kwargs": [kwargs],
                 "source": source,
@@ -512,7 +590,7 @@ def main() -> None:
   parser.add_argument(
       "--test_dataset_path",
       type=str,
-      default="/home/yakovla2/repos/reasonIF/data/reasonIF_dataset.json",
+      default="/Users/sasha/repos/reasonIF/data/reasonIF_dataset.json",
       help="Path to the original ReasonIF test JSON used for exclusion.",
   )
   parser.add_argument(
