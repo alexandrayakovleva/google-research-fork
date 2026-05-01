@@ -36,6 +36,7 @@ LANGUAGE_CODES = immutabledict.immutabledict({
     "ru": "Russian",
     "de": "German",
     "ja": "Japanese",
+    "zh": "Chinese",
     "it": "Italian",
     "bn": "Bengali",
     "uk": "Ukrainian",

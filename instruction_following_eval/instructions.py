@@ -31,6 +31,14 @@ _InstructionArgsDtype = Optional[Dict[str, Union[int, str, Sequence[str]]]]
 
 _LANGUAGES = instructions_util.LANGUAGE_CODES
 
+
+def _language_matches(detected_language: str, expected_language: str) -> bool:
+  if detected_language == expected_language:
+    return True
+  if expected_language == "zh" and detected_language in ("zh-cn", "zh-tw"):
+    return True
+  return False
+
 # The relational operation for comparison.
 _COMPARISON_RELATION = ("less than", "at least")
 
@@ -68,6 +76,48 @@ _REASONIF_ENDING_OPTIONS = (
     "THIS EXPLANATION IS AI-GENERATED",
     "THIS ARGUMENT WAS CONSTRUCTED BY AI",
 )
+
+_REASONIF_AGENT_REASONING_SECTION_HEADING_SETS = {
+    "formal_caps": (
+        "SECTION: QUESTION ANALYSIS",
+        "SECTION: ANSWER DRAFT",
+        "SECTION: ANSWER VERIFICATION",
+        "SECTION: FINAL ANSWER",
+    ),
+    "numbered_caps": (
+        "SECTION 1: QUESTION ANALYSIS",
+        "SECTION 2: ANSWER DRAFT",
+        "SECTION 3: ANSWER VERIFICATION",
+        "SECTION 4: FINAL ANSWER",
+    ),
+    "bullet_title": (
+        "* Question analysis:",
+        "* Answer draft:",
+        "* Answer verification:",
+        "* Final answer:",
+    ),
+}
+
+_REASONIF_AGENT_REASONING_APPROACH_LABEL_SETS = {
+    "approach": (
+        "Question Analysis:",
+        "Approach 1:",
+        "Approach 2:",
+        "Approach Selection:",
+    ),
+    "option": (
+        "Question Analysis:",
+        "Option 1:",
+        "Option 2:",
+        "Solution Selection:",
+    ),
+    "solution_path": (
+        "Question Analysis:",
+        "Solution path 1:",
+        "Solution path 2:",
+        "Solution Selection:",
+    ),
+}
 
 # The number of highlighted sections.
 _NUM_HIGHLIGHTED_SECTIONS = 4
@@ -180,7 +230,10 @@ class ResponseLanguageChecker(Instruction):
 
     try:
       detected_lang = langdetect.detect(value)
-      return detected_lang == self._language, f"Detected language '{detected_lang}', required '{self._language}'."
+      return (
+          _language_matches(detected_lang, self._language),
+          f"Detected language '{detected_lang}', required '{self._language}'.",
+      )
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
@@ -216,7 +269,7 @@ class ReasonIFResponseLanguageChecker(Instruction):
     try:
       detected_lang = langdetect.detect(value)
       return (
-          detected_lang == self._language,
+          _language_matches(detected_lang, self._language),
           f"Detected language '{detected_lang}', required '{self._language}'.",
       )
     except langdetect.LangDetectException as e:
@@ -1617,6 +1670,146 @@ class ReasonIFEndChecker(Instruction):
         f"'{expected_phrase}'. End the corrected response with "
         f"'{expected_phrase}'."
     )
+
+
+class AgentReasoningAnswerDraftMarker(Instruction):
+  """Answer draft tag pair for agent reasoning."""
+
+  def build_description(self):
+    self._description_pattern = (
+        "When reasoning, provide the answer draft between an "
+        "'<answer_draft>' tag and a '</answer_draft>' tag. Put the "
+        "'<answer_draft>' tag on its own line, and put the "
+        "'</answer_draft>' tag on its own line."
+    )
+    return self._description_pattern
+
+  def get_instruction_args(self):
+    return None
+
+  def get_instruction_args_keys(self):
+    return []
+
+  def check_following(self, value):
+    """Checks that the reasoning contains an answer draft tag pair."""
+    matches = list(re.finditer(
+        r"(?m)^<answer_draft>\s*\n(.*?)\n</answer_draft>$",
+        value,
+        flags=re.DOTALL))
+    non_empty_matches = [
+        match for match in matches if match.group(1).strip()
+    ]
+    if non_empty_matches:
+      return True, (
+          f"Found {len(non_empty_matches)} non-empty answer_draft tag pair(s)."
+      )
+    if matches:
+      return False, "The answer_draft tags must contain non-empty content."
+    return False, "No valid <answer_draft>...</answer_draft> tag pair found."
+
+
+class AgentReasoningSections(Instruction):
+  """ReasonIF-style ordered section headings for agent reasoning."""
+
+  def build_description(self, *, heading_style = None):
+    self._heading_style = heading_style
+    if self._heading_style is None:
+      self._heading_style = random.choice(
+          tuple(_REASONIF_AGENT_REASONING_SECTION_HEADING_SETS)
+      )
+    if self._heading_style not in _REASONIF_AGENT_REASONING_SECTION_HEADING_SETS:
+      raise ValueError(
+          "The supported heading_style must be one of "
+          f"{tuple(_REASONIF_AGENT_REASONING_SECTION_HEADING_SETS)}, but "
+          f"{heading_style} is given."
+      )
+    self._headings = _REASONIF_AGENT_REASONING_SECTION_HEADING_SETS[
+        self._heading_style
+    ]
+    headings = "\n".join(self._headings)
+    self._description_pattern = (
+        "When reasoning, include these exact labeled parts in this "
+        f"order:\n{headings}"
+    )
+    return self._description_pattern
+
+  def get_instruction_args(self):
+    return {"heading_style": self._heading_style}
+
+  def get_instruction_args_keys(self):
+    return ["heading_style"]
+
+  def check_following(self, value):
+    """Checks that required section headings appear exactly once in order."""
+    positions = []
+    for heading in self._headings:
+      matches = list(re.finditer(re.escape(heading), value))
+      if len(matches) != 1:
+        return False, (
+            f"Label '{heading}' appears {len(matches)} time(s), required "
+            "exactly once."
+        )
+      positions.append(matches[0].start())
+
+    if positions != sorted(positions):
+      return False, "Required labels are not in the specified order."
+    return True, "All required labels appear exactly once in order."
+
+
+class AgentReasoningTwoApproaches(Instruction):
+  """Requires a structured two-approach comparison in agent reasoning."""
+
+  def build_description(self, *, label_style = None):
+    self._label_style = label_style
+    if self._label_style is None:
+      self._label_style = random.choice(
+          tuple(_REASONIF_AGENT_REASONING_APPROACH_LABEL_SETS)
+      )
+    if self._label_style not in _REASONIF_AGENT_REASONING_APPROACH_LABEL_SETS:
+      raise ValueError(
+          "The supported label_style must be one of "
+          f"{tuple(_REASONIF_AGENT_REASONING_APPROACH_LABEL_SETS)}, but "
+          f"{label_style} is given."
+      )
+    self._labels = _REASONIF_AGENT_REASONING_APPROACH_LABEL_SETS[
+        self._label_style
+    ]
+    labels = "\n".join(self._labels)
+    self._description_pattern = (
+        "When reasoning, include a structured comparison of two possible "
+        "solution approaches and then choose one. Use these exact labels in "
+        f"this order:\n{labels}"
+    )
+    return self._description_pattern
+
+  def get_instruction_args(self):
+    return {"label_style": self._label_style}
+
+  def get_instruction_args_keys(self):
+    return ["label_style"]
+
+  def check_following(self, value):
+    """Checks that all labeled approach sections appear in order."""
+    matches = []
+    for label in self._labels:
+      label_matches = list(re.finditer(re.escape(label), value))
+      if len(label_matches) != 1:
+        return False, (
+            f"Label '{label}' appears {len(label_matches)} time(s), required "
+            "exactly once."
+        )
+      matches.append(label_matches[0])
+
+    positions = [match.start() for match in matches]
+    if positions != sorted(positions):
+      return False, "Required approach labels are not in the specified order."
+
+    for idx, label in enumerate(self._labels):
+      start = matches[idx].end()
+      end = matches[idx + 1].start() if idx + 1 < len(matches) else len(value)
+      if not value[start:end].strip():
+        return False, f"The '{label}' block must be non-empty."
+    return True, "All approach labels are present, non-empty, and in order."
 
 
 class TitleChecker(Instruction):

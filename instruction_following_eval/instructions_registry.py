@@ -54,6 +54,8 @@ _LETTER = "letters:"
 
 _REASONIF = "reasonif:"
 
+_AGENT_REASONING = "agent_reasoning:"
+
 
 INSTRUCTION_DICT = {
     _KEYWORD + "existence": instructions.KeywordChecker,
@@ -134,6 +136,12 @@ INSTRUCTION_DICT = {
     _REASONIF + "detectable_format:json_format": (
         instructions.ReasonIFJsonFormat),
     _REASONIF + "punctuation:no_comma": instructions.ReasonIFCommaChecker,
+    _AGENT_REASONING + "answer_draft_marker": (
+        instructions.AgentReasoningAnswerDraftMarker),
+    _AGENT_REASONING + "sections": (
+        instructions.AgentReasoningSections),
+    _AGENT_REASONING + "two_approaches": (
+        instructions.AgentReasoningTwoApproaches),
 }
 
 INSTRUCTION_CONFLICTS = {
@@ -265,6 +273,21 @@ INSTRUCTION_CONFLICTS = {
     },
     _REASONIF + "punctuation:no_comma": {
         _REASONIF + "punctuation:no_comma",
+    },
+    _AGENT_REASONING + "answer_draft_marker": {
+        _AGENT_REASONING + "answer_draft_marker",
+        _REASONIF + "detectable_format:json_format",
+        _REASONIF + "change_case:english_capital",
+    },
+    _AGENT_REASONING + "sections": {
+        _AGENT_REASONING + "sections",
+        _REASONIF + "detectable_format:json_format",
+        _REASONIF + "change_case:english_capital",
+    },
+    _AGENT_REASONING + "two_approaches": {
+        _AGENT_REASONING + "two_approaches",
+        _REASONIF + "detectable_format:json_format",
+        _REASONIF + "change_case:english_capital",
     },
 }
 

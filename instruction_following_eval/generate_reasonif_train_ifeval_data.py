@@ -18,12 +18,15 @@ from datasets import load_dataset
 
 
 TARGET_INSTRUCTION_IDS = [
-    "reasonif:language:reasoning_language",
-    "reasonif:length_constraint_checkers:number_words",
-    "reasonif:change_case:english_capital",
-    "reasonif:startend:end_checker",
-    "reasonif:detectable_format:json_format",
-    "reasonif:punctuation:no_comma",
+    # "reasonif:language:reasoning_language",
+    # "reasonif:length_constraint_checkers:number_words",
+    # "reasonif:change_case:english_capital",
+    # "reasonif:startend:end_checker",
+    # "reasonif:detectable_format:json_format",
+    # "reasonif:punctuation:no_comma",
+    "agent_reasoning:answer_draft_marker",
+    "agent_reasoning:sections",
+    "agent_reasoning:two_approaches",
 ]
 
 DEFAULT_REASONIF_WORD_LIMIT = {

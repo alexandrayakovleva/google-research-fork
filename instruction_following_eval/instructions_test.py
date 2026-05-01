@@ -1287,6 +1287,97 @@ I love it too much. I'll just have to make sure to eat it in moderation.
           instruction.check_following(self.TEST_QUOTATION_MESSAGE_2)
       )
 
+  def test_reasonif_agent_reasoning_answer_draft_marker(self):
+    instruction_id = 'agent_reasoning:answer_draft_marker'
+    instruction = instructions.AgentReasoningAnswerDraftMarker(
+        instruction_id)
+    instruction.build_description()
+    self.assertTrue(
+        instruction.check_following(
+            'analysis\n<answer_draft>\ndraft\n</answer_draft>')[0]
+    )
+    self.assertTrue(
+        instruction.check_following(
+            '<answer_draft>\ndraft one\n</answer_draft>\n'
+            '<answer_draft>\ndraft two\n</answer_draft>')[0]
+    )
+    self.assertFalse(
+        instruction.check_following('<answer_draft>draft</answer_draft>')[0]
+    )
+    self.assertFalse(
+        instruction.check_following('analysis\n<answer_draft>\ndraft')[0]
+    )
+    self.assertFalse(
+        instruction.check_following(
+            'analysis\n<answer_draft>\n</answer_draft>')[0]
+    )
+
+  def test_reasonif_agent_reasoning_sections(self):
+    instruction_id = 'agent_reasoning:sections'
+    instruction = instructions.AgentReasoningSections(instruction_id)
+    instruction.build_description(heading_style='formal_caps')
+    valid_response = (
+        'Intro.\nSECTION: QUESTION ANALYSIS\nAnalyze.\n'
+        'SECTION: ANSWER DRAFT\nDraft.\n'
+        'SECTION: ANSWER VERIFICATION\nVerify.\n'
+        'SECTION: FINAL ANSWER\nFinal.\nDone.'
+    )
+    invalid_response = (
+        'SECTION: ANSWER DRAFT\nDraft.\n'
+        'SECTION: QUESTION ANALYSIS\nAnalyze.\n'
+        'SECTION: ANSWER VERIFICATION\nVerify.\n'
+        'SECTION: FINAL ANSWER\nFinal.'
+    )
+    self.assertTrue(instruction.check_following(valid_response)[0])
+    self.assertFalse(instruction.check_following(invalid_response)[0])
+
+    instruction.build_description(heading_style='bullet_title')
+    self.assertTrue(
+        instruction.check_following(
+            'Intro.\n* Question analysis:\nAnalyze.\n'
+            '* Answer draft:\nDraft.\n'
+            '* Answer verification:\nVerify.\n'
+            '* Final answer:\nFinal.'
+        )[0]
+    )
+
+  def test_reasonif_agent_reasoning_two_approaches(self):
+    instruction_id = 'agent_reasoning:two_approaches'
+    instruction = instructions.AgentReasoningTwoApproaches(instruction_id)
+    instruction.build_description(label_style='approach')
+    valid_response = (
+        'I need to compare methods.\n'
+        'Question Analysis:\nThis is a rate problem.\n'
+        'Approach 1:\nUse direct calculation.\n'
+        'Approach 2:\nUse a formula and verify it.\n'
+        'Approach Selection:\nUse direct calculation.'
+    )
+    self.assertTrue(instruction.check_following(valid_response)[0])
+    self.assertFalse(
+        instruction.check_following(
+            'Question Analysis:\nAnalyze.\nApproach 1:\n\n'
+            'Approach 2:\nUse a formula.\nApproach Selection:\nChoose.')[0]
+    )
+    self.assertFalse(
+        instruction.check_following(
+            'Approach 2:\nUse a formula.\nQuestion Analysis:\nAnalyze.\n'
+            'Approach 1:\nUse direct calculation.\nApproach Selection:\nChoose.')[0]
+    )
+    self.assertFalse(
+        instruction.check_following(
+            'Question Analysis:\nAnalyze.\nApproach 1:\nA.\nApproach 1:\nB.\n'
+            'Approach 2:\nC.\nApproach Selection:\nChoose.')[0]
+    )
+    instruction.build_description(label_style='solution_path')
+    self.assertTrue(
+        instruction.check_following(
+            'Question Analysis:\nAnalyze.\n'
+            'Solution path 1:\nUse direct calculation.\n'
+            'Solution path 2:\nUse a formula.\n'
+            'Solution Selection:\nUse the direct calculation.'
+        )[0]
+    )
+
   INSTRUCTION_DICT = {
       'language:response_language': instructions.ResponseLanguageChecker,
       'length_constraints:number_sentences': instructions.NumberOfSentences,
@@ -1311,6 +1402,12 @@ I love it too much. I'll just have to make sure to eat it in moderation.
       'reasonif:detectable_format:json_format': (
           instructions.ReasonIFJsonFormat),
       'reasonif:punctuation:no_comma': instructions.ReasonIFCommaChecker,
+      'agent_reasoning:answer_draft_marker': (
+          instructions.AgentReasoningAnswerDraftMarker),
+      'agent_reasoning:sections': (
+          instructions.AgentReasoningSections),
+      'agent_reasoning:two_approaches': (
+          instructions.AgentReasoningTwoApproaches),
   }
 
   def test_get_instruction_args(self):
