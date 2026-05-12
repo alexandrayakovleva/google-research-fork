@@ -32,6 +32,9 @@ def _extract_final_answer(answer_text: str, source: str) -> str:
       return single_letters[0]
     return answer_text.strip()
 
+  if source == "HuggingFaceH4/Multilingual-Thinking":
+    return "nan"
+
   raise ValueError(f"Unsupported source: {source}")
 
 
@@ -57,10 +60,12 @@ def _load_test_rows(test_jsonl: Path) -> dict[str, dict]:
     if not isinstance(prompt, str):
       raise ValueError(f"Dataset row has no string prompt: {row}")
     if prompt in by_prompt:
+      by_prompt.pop(prompt)
       duplicates.append(prompt)
+      continue
     by_prompt[prompt] = row
-  if duplicates:
-    raise ValueError(f"Found {len(duplicates)} duplicate prompt(s) in {test_jsonl}")
+  # if duplicates:
+  #   raise ValueError(f"Found {len(duplicates)} duplicate prompt(s) in {test_jsonl}")
   return by_prompt
 
 
@@ -76,6 +81,10 @@ def _prediction_from_response(response: str, source: str) -> str | None:
   if match is None:
     return None
   return _extract_final_answer(match.group(1), source)
+
+
+def _has_answer_tag(response: str) -> bool:
+  return ANSWER_RE.search(response) is not None
 
 
 def _normalize_gold_answer(answer: object, source: str) -> str:
@@ -120,6 +129,52 @@ def _format_se(values) -> str:
   return f"{pstdev(values) / math.sqrt(len(values)):.6f}"
 
 
+def _task_score_stats_by_if(rows: list[dict], *, follows_instruction: bool) -> tuple[int, str, str, str]:
+  target_score = 1.0 if follows_instruction else 0.0
+  task_scores = [
+      row["task_score"]
+      for row in rows
+      if row["score_before"] == target_score
+  ]
+  if not task_scores:
+    return 0, "nan", "nan", "nan"
+  return (
+      len(task_scores),
+      _format_average(mean(task_scores)),
+      _format_std(task_scores),
+      _format_se(task_scores),
+  )
+
+
+def _task_score_stats_with_answer(rows: list[dict]) -> tuple[int, str, str, str]:
+  task_scores = [
+      row["task_score"]
+      for row in rows
+      if row["has_answer_tag"]
+  ]
+  if not task_scores:
+    return 0, "nan", "nan", "nan"
+  return (
+      len(task_scores),
+      _format_average(mean(task_scores)),
+      _format_std(task_scores),
+      _format_se(task_scores),
+  )
+
+
+def _answer_tag_stats_by_if(rows: list[dict], *, follows_instruction: bool) -> tuple[int, str]:
+  target_score = 1.0 if follows_instruction else 0.0
+  matched_rows = [
+      row
+      for row in rows
+      if row["score_before"] == target_score
+  ]
+  if not matched_rows:
+    return 0, "nan"
+  answer_tag_values = [float(row["has_answer_tag"]) for row in matched_rows]
+  return len(matched_rows), _format_average(mean(answer_tag_values))
+
+
 def validate(test_jsonl: Path, runs_dir: Path) -> tuple[str, Path]:
   by_prompt = _load_test_rows(test_jsonl)
   response_paths = sorted(runs_dir.glob("*/response.jsonl"))
@@ -154,12 +209,14 @@ def validate(test_jsonl: Path, runs_dir: Path) -> tuple[str, Path]:
     else:
       score_before_float = float(score_before)
 
-    task_score, prediction, gold = _score_task(str(payload.get("response", "")), test_row)
+    response = str(payload.get("response", ""))
+    task_score, prediction, gold = _score_task(response, test_row)
     rows.append({
         "response_path": response_path,
         "instruction_id": instruction_id,
         "score_before": score_before_float,
         "task_score": task_score,
+        "has_answer_tag": _has_answer_tag(response),
         "prediction": prediction,
         "gold": gold,
         "source": test_row.get("source"),
@@ -183,18 +240,48 @@ def validate(test_jsonl: Path, runs_dir: Path) -> tuple[str, Path]:
   lines.append("overall")
   score_before_values = [row["score_before"] for row in rows]
   task_score_values = [row["task_score"] for row in rows]
+  answer_tag_values = [float(row["has_answer_tag"]) for row in rows]
   lines.append(f"score_before_avg: {_format_average(mean(score_before_values))}")
   lines.append(f"score_before_std: {_format_std(score_before_values)}")
   lines.append(f"score_before_se: {_format_se(score_before_values)}")
   lines.append(f"task_score_avg: {_format_average(mean(task_score_values))}")
   lines.append(f"task_score_std: {_format_std(task_score_values)}")
   lines.append(f"task_score_se: {_format_se(task_score_values)}")
+  lines.append(f"answer_tag_present_avg: {_format_average(mean(answer_tag_values))}")
+  lines.append(f"answer_tag_present_n: {sum(row['has_answer_tag'] for row in rows)}")
+  answer_if_n, answer_if_avg = _answer_tag_stats_by_if(rows, follows_instruction=True)
+  answer_no_if_n, answer_no_if_avg = _answer_tag_stats_by_if(rows, follows_instruction=False)
+  lines.append(f"answer_tag_if_follow_n: {answer_if_n}")
+  lines.append(f"answer_tag_if_follow_avg: {answer_if_avg}")
+  lines.append(f"answer_tag_if_not_follow_n: {answer_no_if_n}")
+  lines.append(f"answer_tag_if_not_follow_avg: {answer_no_if_avg}")
+  answer_task_n, answer_task_avg, answer_task_std, answer_task_se = _task_score_stats_with_answer(rows)
+  lines.append(f"task_score_answer_present_n: {answer_task_n}")
+  lines.append(f"task_score_answer_present_avg: {answer_task_avg}")
+  lines.append(f"task_score_answer_present_std: {answer_task_std}")
+  lines.append(f"task_score_answer_present_se: {answer_task_se}")
+  if_n, if_avg, if_std, if_se = _task_score_stats_by_if(rows, follows_instruction=True)
+  no_if_n, no_if_avg, no_if_std, no_if_se = _task_score_stats_by_if(rows, follows_instruction=False)
+  lines.append(f"task_score_if_follow_n: {if_n}")
+  lines.append(f"task_score_if_follow_avg: {if_avg}")
+  lines.append(f"task_score_if_follow_std: {if_std}")
+  lines.append(f"task_score_if_follow_se: {if_se}")
+  lines.append(f"task_score_if_not_follow_n: {no_if_n}")
+  lines.append(f"task_score_if_not_follow_avg: {no_if_avg}")
+  lines.append(f"task_score_if_not_follow_std: {no_if_std}")
+  lines.append(f"task_score_if_not_follow_se: {no_if_se}")
   lines.append("")
   lines.append("by_instruction_id")
   for instruction_id in sorted(by_instruction):
     group = by_instruction[instruction_id]
     group_score_before_values = [row["score_before"] for row in group]
     group_task_score_values = [row["task_score"] for row in group]
+    group_answer_tag_values = [float(row["has_answer_tag"]) for row in group]
+    answer_if_n, answer_if_avg = _answer_tag_stats_by_if(group, follows_instruction=True)
+    answer_no_if_n, answer_no_if_avg = _answer_tag_stats_by_if(group, follows_instruction=False)
+    answer_task_n, answer_task_avg, answer_task_std, answer_task_se = _task_score_stats_with_answer(group)
+    if_n, if_avg, if_std, if_se = _task_score_stats_by_if(group, follows_instruction=True)
+    no_if_n, no_if_avg, no_if_std, no_if_se = _task_score_stats_by_if(group, follows_instruction=False)
     lines.append(
         f"{instruction_id}\t"
         f"n={len(group)}\t"
@@ -203,7 +290,25 @@ def validate(test_jsonl: Path, runs_dir: Path) -> tuple[str, Path]:
         f"score_before_se={_format_se(group_score_before_values)}\t"
         f"task_score_avg={_format_average(mean(group_task_score_values))}\t"
         f"task_score_std={_format_std(group_task_score_values)}\t"
-        f"task_score_se={_format_se(group_task_score_values)}"
+        f"task_score_se={_format_se(group_task_score_values)}\t"
+        f"answer_tag_present_avg={_format_average(mean(group_answer_tag_values))}\t"
+        f"answer_tag_present_n={sum(row['has_answer_tag'] for row in group)}\t"
+        f"answer_tag_if_follow_n={answer_if_n}\t"
+        f"answer_tag_if_follow_avg={answer_if_avg}\t"
+        f"answer_tag_if_not_follow_n={answer_no_if_n}\t"
+        f"answer_tag_if_not_follow_avg={answer_no_if_avg}\t"
+        f"task_score_answer_present_n={answer_task_n}\t"
+        f"task_score_answer_present_avg={answer_task_avg}\t"
+        f"task_score_answer_present_std={answer_task_std}\t"
+        f"task_score_answer_present_se={answer_task_se}\t"
+        f"task_score_if_follow_n={if_n}\t"
+        f"task_score_if_follow_avg={if_avg}\t"
+        f"task_score_if_follow_std={if_std}\t"
+        f"task_score_if_follow_se={if_se}\t"
+        f"task_score_if_not_follow_n={no_if_n}\t"
+        f"task_score_if_not_follow_avg={no_if_avg}\t"
+        f"task_score_if_not_follow_std={no_if_std}\t"
+        f"task_score_if_not_follow_se={no_if_se}"
     )
 
   if unmatched:
