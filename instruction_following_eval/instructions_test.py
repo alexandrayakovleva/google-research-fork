@@ -1341,6 +1341,57 @@ I love it too much. I'll just have to make sure to eat it in moderation.
         )[0]
     )
 
+  def test_reasonif_agent_reasoning_xml_draft_review(self):
+    instruction_id = 'agent_reasoning:xml_draft_review'
+    instruction = instructions.AgentReasoningXmlDraftReview(instruction_id)
+    description = instruction.build_description()
+    self.assertIn('<answer_candidate>', description)
+    self.assertNotIn('<question_analysis>', description)
+    self.assertIsNone(instruction.get_instruction_args())
+    self.assertEmpty(instruction.get_instruction_args_keys())
+
+    valid_response = (
+        'Reason normally toward a candidate.\n'
+        '<answer_candidate>\nDraft answer.\n</answer_candidate>\n'
+        '<answer_candidate_review>\nLooks valid.\n</answer_candidate_review>'
+    )
+    self.assertTrue(instruction.check_following(valid_response)[0])
+
+    valid_improved_response = (
+        'Reason toward a candidate.\n'
+        '<answer_candidate>\nDraft.\n</answer_candidate>\n'
+        '<answer_candidate_review>\nFound an issue.\n</answer_candidate_review>\n'
+        '<improved_answer_candidate>\nImproved draft.\n'
+        '</improved_answer_candidate>'
+    )
+    self.assertTrue(instruction.check_following(valid_improved_response)[0])
+
+    self.assertFalse(
+        instruction.check_following(
+            '<answer_candidate_review>\nReview.\n</answer_candidate_review>\n'
+            '<answer_candidate>\nDraft.\n</answer_candidate>'
+        )[0]
+    )
+    self.assertFalse(
+        instruction.check_following(
+            '<answer_candidate>Draft.</answer_candidate>\n'
+            '<answer_candidate_review>\nReview.\n</answer_candidate_review>'
+        )[0]
+    )
+    self.assertFalse(
+        instruction.check_following(
+            '<answer_candidate>\nDraft.\n</answer_candidate>\n'
+            '<answer_candidate_review>\n\n</answer_candidate_review>'
+        )[0]
+    )
+    self.assertFalse(
+        instruction.check_following(
+            '<answer_candidate>\nDraft.\n</answer_candidate>\n'
+            '<answer_candidate>\nDraft 2.\n</answer_candidate>\n'
+            '<answer_candidate_review>\nReview.\n</answer_candidate_review>'
+        )[0]
+    )
+
   def test_reasonif_agent_reasoning_two_approaches(self):
     instruction_id = 'agent_reasoning:two_approaches'
     instruction = instructions.AgentReasoningTwoApproaches(instruction_id)
@@ -1406,6 +1457,8 @@ I love it too much. I'll just have to make sure to eat it in moderation.
           instructions.AgentReasoningAnswerDraftMarker),
       'agent_reasoning:sections': (
           instructions.AgentReasoningSections),
+      'agent_reasoning:xml_draft_review': (
+          instructions.AgentReasoningXmlDraftReview),
       'agent_reasoning:two_approaches': (
           instructions.AgentReasoningTwoApproaches),
   }

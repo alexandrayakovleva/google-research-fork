@@ -9,6 +9,7 @@ from typing import Any
 TARGET_INSTRUCTION_IDS = [
     "agent_reasoning:answer_draft_marker",
     "agent_reasoning:sections",
+    "agent_reasoning:xml_draft_review",
     "agent_reasoning:two_approaches",
 ]
 
@@ -93,6 +94,27 @@ def _build_instruction(
         "When reasoning, include these exact labeled parts in this "
         f"order:\n{headings}",
         {"heading_style": heading_style},
+    )
+
+  if inst_id == "agent_reasoning:xml_draft_review":
+    return (
+        "First reason normally toward an answer candidate. Then, while "
+        "reasoning, put the draft and review in this exact XML section "
+        "structure. Put each opening tag and closing tag on its own line.\n"
+        "<answer_candidate>\n"
+        "Draft the answer candidate. This should be the response you would "
+        "show to the user if it passes review.\n"
+        "</answer_candidate>\n"
+        "<answer_candidate_review>\n"
+        "Review the answer candidate for correctness and compliance with the "
+        "user's constraints. If it passes, finish reasoning and output that "
+        "answer. If you find a problem, explain the fix briefly and put the "
+        "corrected final candidate in "
+        "<improved_answer_candidate>...</improved_answer_candidate>.\n"
+        "</answer_candidate_review>\n"
+        "Only include the optional <improved_answer_candidate> section when "
+        "the review found a problem with the first answer candidate.",
+        {},
     )
 
   if inst_id == "agent_reasoning:two_approaches":
