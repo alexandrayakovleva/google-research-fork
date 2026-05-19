@@ -140,6 +140,8 @@ INSTRUCTION_DICT = {
         instructions.AgentReasoningAnswerDraftMarker),
     _AGENT_REASONING + "sections": (
         instructions.AgentReasoningSections),
+    _AGENT_REASONING + "xml_draft_review": (
+        instructions.AgentReasoningXmlDraftReview),
     _AGENT_REASONING + "two_approaches": (
         instructions.AgentReasoningTwoApproaches),
 }

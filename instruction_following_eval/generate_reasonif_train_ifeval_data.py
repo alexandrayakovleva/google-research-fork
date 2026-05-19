@@ -26,6 +26,7 @@ TARGET_INSTRUCTION_IDS = [
     # "reasonif:punctuation:no_comma",
     "agent_reasoning:answer_draft_marker",
     "agent_reasoning:sections",
+    "agent_reasoning:xml_draft_review",
     "agent_reasoning:two_approaches",
 ]
 

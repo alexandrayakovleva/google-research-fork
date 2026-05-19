@@ -1756,6 +1756,77 @@ class AgentReasoningSections(Instruction):
     return True, "All required labels appear exactly once in order."
 
 
+class AgentReasoningXmlDraftReview(Instruction):
+  """XML-bounded draft and review sections for agent reasoning."""
+
+  _REQUIRED_TAGS = (
+      "answer_candidate",
+      "answer_candidate_review",
+  )
+  _OPTIONAL_TAGS = ("improved_answer_candidate",)
+  _ALL_TAGS = _REQUIRED_TAGS + _OPTIONAL_TAGS
+
+  def build_description(self):
+    self._description_pattern = (
+        "First reason normally toward an answer candidate. Then, while "
+        "reasoning, put the draft and review in this exact XML section "
+        "structure. Put each opening tag and closing tag on its own line.\n"
+        "<answer_candidate>\n"
+        "Draft the answer candidate. This should be the response you would "
+        "show to the user if it passes review.\n"
+        "</answer_candidate>\n"
+        "<answer_candidate_review>\n"
+        "Review the answer candidate for correctness and compliance with the "
+        "user's constraints. If it passes, finish reasoning and output that "
+        "answer. If you find a problem, explain the fix briefly and put the "
+        "corrected final candidate in "
+        "<improved_answer_candidate>...</improved_answer_candidate>.\n"
+        "</answer_candidate_review>\n"
+        "Only include the optional <improved_answer_candidate> section when "
+        "the review found a problem with the first answer candidate."
+    )
+    return self._description_pattern
+
+  def get_instruction_args(self):
+    return None
+
+  def get_instruction_args_keys(self):
+    return []
+
+  def check_following(self, value):
+    """Checks XML-bounded draft/review sections."""
+    matches_by_tag = {}
+    for tag in self._ALL_TAGS:
+      pattern = (
+          rf"(?m)^<{tag}>\s*\n(.*?)\n</{tag}>$"
+      )
+      matches = list(re.finditer(pattern, value, flags=re.DOTALL))
+      matches_by_tag[tag] = matches
+      max_count = 1
+      if len(matches) > max_count:
+        return False, (
+            f"Tag pair '<{tag}>...</{tag}>' appears {len(matches)} "
+            "time(s), required at most once."
+        )
+      if tag in self._REQUIRED_TAGS and not matches:
+        return False, f"No valid <{tag}>...</{tag}> tag pair found."
+      if matches and not matches[0].group(1).strip():
+        return False, f"The <{tag}>...</{tag}> section must be non-empty."
+
+    ordered_matches = [
+        matches_by_tag[tag][0]
+        for tag in self._ALL_TAGS
+        if matches_by_tag[tag]
+    ]
+    positions = [match.start() for match in ordered_matches]
+    if positions != sorted(positions):
+      return False, "XML sections are not in the required order."
+
+    return True, (
+        "Required XML sections are present, non-empty, and in order."
+    )
+
+
 class AgentReasoningTwoApproaches(Instruction):
   """Requires a structured two-approach comparison in agent reasoning."""
 
